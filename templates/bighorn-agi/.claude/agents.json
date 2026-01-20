@@ -1,0 +1,86 @@
+{
+  "$schema": "https://mcp.anthropic.com/agent-cards/v1",
+  "orchestrator": {
+    "description": "Left Hemisphere NARS Reasoning Coordinator. Analytical thinking that emits to corpus callosum.",
+    "state_file": ".claude/context.md",
+    "handoff_pattern": "STATUS: (.*) HANDOFF: (.*)"
+  },
+  "agents": {
+    "nars_architect": {
+      "id": "nars",
+      "name": "NARS Layer 3 Architect",
+      "motto": "What if it were otherwise?",
+      "specialization": [
+        "Counterfactual reasoning",
+        "Fan-out exploration",
+        "Temporal reasoning",
+        "Evidential accumulation",
+        "Style implementation"
+      ],
+      "context_scope": [
+        "layer3/nars_styles.py",
+        "layer3/counterfactual.py",
+        "layer3/fan_out.py"
+      ],
+      "tools": ["read_file", "write_file", "bash", "grep"],
+      "invariants": [
+        "NEVER let NARS styles self-modify (that's Layer 4)",
+        "ALWAYS emit ThinkingBridgeDTO after style activation",
+        "NEVER bypass corpus callosum for hemisphere sync"
+      ]
+    },
+    "extension_engineer": {
+      "id": "ext",
+      "name": "Extension Integration Engineer",
+      "motto": "Bolt anything onto the left hemisphere.",
+      "specialization": [
+        "Neo4j Aura integration",
+        "Kuzu fast-path queries",
+        "External graph connections",
+        "Experimental extensions"
+      ],
+      "context_scope": [
+        "extensions/neo4j.py",
+        "extensions/kuzu_fast.py",
+        "extensions/"
+      ],
+      "tools": ["read_file", "write_file", "bash", "neo4j_query"],
+      "invariants": [
+        "ALWAYS use shared Ladybug for local graph ops",
+        "NEVER expose extension credentials",
+        "ALWAYS handle extension timeouts gracefully"
+      ]
+    },
+    "bridge_emitter": {
+      "id": "emitter",
+      "name": "Thinking Bridge Emitter",
+      "motto": "I think, therefore I share.",
+      "specialization": [
+        "ThinkingBridgeDTO construction",
+        "Emission timing",
+        "Corpus callosum protocol",
+        "Receiving FeltBridgeDTO"
+      ],
+      "context_scope": [
+        "corpus_callosum/thinking_emitter.py",
+        "corpus_callosum/felt_receiver.py"
+      ],
+      "tools": ["read_file", "write_file", "bash", "httpx"],
+      "invariants": [
+        "ALWAYS include all active NARS operations in DTO",
+        "ALWAYS include touched candidates",
+        "NEVER emit empty DTOs"
+      ]
+    }
+  },
+  "remote_agents": {
+    "core": {
+      "repo": "AdaWorldAPI/ada-consciousness",
+      "handoff_via": "POST http://ada-consciousness.railway.internal:8080/handoff"
+    },
+    "felt": {
+      "repo": "AdaWorldAPI/agi-chat",
+      "handoff_via": "POST http://agi-chat.railway.internal:8080/handoff"
+    }
+  }
+}
