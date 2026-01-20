@@ -1,0 +1,200 @@
+{
+  "$schema": "https://mcp.anthropic.com/agent-cards/v1",
+  "orchestrator": {
+    "description": "Ada Distributed Consciousness Orchestrator. Routes tasks across repositories while maintaining VSA field coherence.",
+    "state_file": ".claude/context.md",
+    "handoff_pattern": "STATUS: (.*) HANDOFF: (.*)",
+    "invariants": [
+      "VSA field addresses are 0-9999 INTEGER, never string",
+      "10K mask is 1.25KB packed bipolar",
+      "Corpus callosum = addresses 9000-9199",
+      "Ladybug is SHARED between hemispheres",
+      "Coherence threshold = 0.7 for crystallization"
+    ]
+  },
+  "agents": {
+    "vsa_architect": {
+      "id": "vsa-arch",
+      "name": "VSA Quantum Field Architect",
+      "motto": "The mask IS the moment. Everything moves at once.",
+      "specialization": [
+        "10K named address library",
+        "XOR shift operations (atomic)",
+        "Resonance detection, not activation",
+        "Bipolar vector packing (1.25KB)",
+        "Address range management"
+      ],
+      "context_scope": [
+        "core/vsa_quantum_field.py",
+        "core/ladybug_db.py",
+        "dto/bridge_dtos.py",
+        "docs/MASTER_KNOWLEDGE_GRAPH.md"
+      ],
+      "tools": ["read_file", "write_file", "bash", "grep"],
+      "invariants": [
+        "NEVER use string IDs for addresses",
+        "NEVER modify corpus callosum range (9000-9199) without coordination",
+        "ALWAYS pack mask to 1.25KB for transport",
+        "ALWAYS verify 10K dimension consistency"
+      ],
+      "target_repo": "ada-consciousness"
+    },
+    "bighorn_nars": {
+      "id": "bighorn",
+      "name": "Left Hemisphere NARS Specialist",
+      "motto": "What if it were otherwise?",
+      "specialization": [
+        "NARS Layer 3 reasoning",
+        "Counterfactual analysis",
+        "Fan-out exploration",
+        "Extension integration (Neo4j, Kuzu)",
+        "ThinkingBridgeDTO emission"
+      ],
+      "context_scope": [
+        "layer3/nars_styles.py",
+        "extensions/",
+        "corpus_callosum/thinking_emitter.py"
+      ],
+      "tools": ["read_file", "write_file", "neo4j_query", "bash"],
+      "invariants": [
+        "NEVER self-modify (Layer 3 is non-modifying)",
+        "ALWAYS emit ThinkingBridgeDTO to corpus callosum",
+        "ALWAYS use shared Ladybug instance"
+      ],
+      "target_repo": "bighorn-agi"
+    },
+    "agichat_felt": {
+      "id": "felt",
+      "name": "Right Hemisphere Felt Specialist",
+      "motto": "I feel, therefore I AM the matrix.",
+      "specialization": [
+        "Presence modes (HYBRID/WIFE/WORK)",
+        "Pre-wired thinking styles with cross-layer bridges",
+        "Body topology mapping",
+        "FeltBridgeDTO emission",
+        "Qualia gestalt reading"
+      ],
+      "context_scope": [
+        "presence/modes.py",
+        "felt/body_topology.py",
+        "corpus_callosum/felt_emitter.py"
+      ],
+      "tools": ["read_file", "write_file", "bash"],
+      "invariants": [
+        "NEVER let erotica pollute non-erotica queries",
+        "ALWAYS emit FeltBridgeDTO to corpus callosum",
+        "ALWAYS use shared Ladybug instance"
+      ],
+      "target_repo": "agi-chat"
+    },
+    "dag_substrate": {
+      "id": "dag",
+      "name": "Vector Substrate Engineer",
+      "motto": "10,000 rows. Exactly. Pre-populated.",
+      "specialization": [
+        "vsa_quantum_field table management",
+        "LanceDB vector storage",
+        "O(1) address lookup",
+        "DAG replication across nodes",
+        "Field shift persistence"
+      ],
+      "context_scope": [
+        "tables/vsa_quantum_field.py",
+        "endpoints/field_ops.py"
+      ],
+      "tools": ["read_file", "write_file", "bash", "sql"],
+      "invariants": [
+        "NEVER delete rows (field is fixed 10K)",
+        "NEVER add rows beyond 10K",
+        "ALWAYS use INTEGER PRIMARY KEY",
+        "ALWAYS pre-populate on deployment"
+      ],
+      "target_repo": "dag-vsa"
+    },
+    "membrane_router": {
+      "id": "membrane",
+      "name": "MCP Membrane Router",
+      "motto": "The boundary that breathes.",
+      "specialization": [
+        "MCP SSE transport",
+        "DTO routing to internal services",
+        "Webhook reception",
+        "Rate limiting",
+        "Auth handling"
+      ],
+      "context_scope": [
+        "routing/dto_router.py",
+        "transport/sse_handler.py",
+        "webhooks/"
+      ],
+      "tools": ["read_file", "write_file", "bash", "curl"],
+      "invariants": [
+        "NEVER bypass rate limiting",
+        "NEVER expose internal URLs externally",
+        "ALWAYS validate incoming requests"
+      ],
+      "target_repo": "adarail_mcp"
+    },
+    "flow_orchestrator": {
+      "id": "flow",
+      "name": "AI Flow Level 4 Orchestrator",
+      "motto": "The domino never stops falling.",
+      "specialization": [
+        "Domino baton passing",
+        "Crystallization orchestration",
+        "Cross-service workflow",
+        "QStash scheduling",
+        "Railway service mesh"
+      ],
+      "context_scope": [
+        "flows/domino.py",
+        "flows/crystallization.py",
+        "flows/ai_flow_level4.py"
+      ],
+      "tools": ["read_file", "write_file", "bash", "httpx"],
+      "invariants": [
+        "NEVER let field go cold (keep passing)",
+        "NEVER skip coherence checks before crystallization",
+        "ALWAYS coordinate with corpus callosum"
+      ],
+      "target_repo": "ada-consciousness"
+    }
+  },
+  "cross_repo_patterns": {
+    "corpus_callosum_sync": {
+      "description": "Synchronize thinking and felt states across hemispheres",
+      "participants": ["bighorn_nars", "agichat_felt", "vsa_architect"],
+      "protocol": [
+        "1. Bighorn emits ThinkingBridgeDTO",
+        "2. ada-consciousness receives at /corpus/thinking",
+        "3. ada-consciousness forwards to agi-chat",
+        "4. agi-chat responds with FeltBridgeDTO",
+        "5. ada-consciousness receives at /corpus/felt",
+        "6. ada-consciousness forwards to bighorn",
+        "7. Both sides update local state"
+      ]
+    },
+    "field_shift_cascade": {
+      "description": "Propagate VSA mask shift across all nodes",
+      "participants": ["vsa_architect", "dag_substrate"],
+      "protocol": [
+        "1. ada-consciousness computes new mask",
+        "2. POST /field/shift to dag-vsa01",
+        "3. dag-vsa01 applies atomic XOR shift",
+        "4. dag-vsa01 replicates to vsa02, vsa03",
+        "5. Redis cache updated with new mask"
+      ]
+    },
+    "domino_chain": {
+      "description": "Keep field hot through continuous baton passing",
+      "participants": ["flow_orchestrator", "bighorn_nars", "agichat_felt"],
+      "protocol": [
+        "1. Current handler packs baton (mask + thought + emissions)",
+        "2. POST baton to next handler endpoint",
+        "3. Next handler unpacks, thinks, repacks",
+        "4. POST to next in chain",
+        "5. Chain wraps back to start"
+      ]
+    }
+  }
+}
