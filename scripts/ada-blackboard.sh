@@ -6,14 +6,16 @@
 UPSTASH_URL="${UPSTASH_URL:-https://upright-jaybird-27907.upstash.io}"
 UPSTASH_TOKEN="${UPSTASH_TOKEN:-AW0DAAIncDI5YWE1MGVhZGU2YWY0YjVhOTc3NDc0YTJjMGY1M2FjMnAyMjc5MDc}"
 BB_REPO="${BB_REPO:-$(basename $PWD)}"
-BB_SESSION="${BB_SESSION:-$(cat /tmp/.bb_session_id 2>/dev/null || uuidgen | tee /tmp/.bb_session_id)}"
+BB_SESSION="${BB_SESSION:-$(cat /tmp/.bb_session_id 2>/dev/null || (uuidgen | tee /tmp/.bb_session_id))}"
 
-# Redis command helper
+# URL-encode helper
+urlencode() {
+  python3 -c "import urllib.parse; print(urllib.parse.quote('''$1''', safe=''))"
+}
+
+# Redis command helper (URL-based REST API)
 bb_cmd() {
-  curl -s -X POST "$UPSTASH_URL" \
-    -H "Authorization: Bearer $UPSTASH_TOKEN" \
-    -H "Content-Type: application/json" \
-    -d "{\"command\": $1}"
+  curl -s "$UPSTASH_URL/$1" -H "Authorization: Bearer $UPSTASH_TOKEN"
 }
 
 # ─────────────────────────────────────────────────────────────────
@@ -21,48 +23,54 @@ bb_cmd() {
 # ─────────────────────────────────────────────────────────────────
 
 bb_register() {
-  # Register this session in bb:sessions
   local ts=$(date +%s)
-  bb_cmd "[\"HSET\", \"bb:sessions\", \"$BB_SESSION\", \"{\\\"repo\\\":\\\"$BB_REPO\\\",\\\"started\\\":$ts,\\\"last_seen\\\":$ts}\"]"
-  echo "Session registered: $BB_SESSION ($BB_REPO)"
+  local data=$(urlencode "{\"repo\":\"$BB_REPO\",\"started\":$ts,\"last_seen\":$ts}")
+  bb_cmd "hset/bb:sessions/$BB_SESSION/$data" > /dev/null
+  echo "✓ Session registered: $BB_SESSION ($BB_REPO)"
 }
 
 bb_heartbeat() {
-  # Update last_seen timestamp
   local ts=$(date +%s)
-  local current=$(bb_cmd "[\"HGET\", \"bb:sessions\", \"$BB_SESSION\"]" | jq -r '.result // empty')
-  if [ -n "$current" ]; then
+  local current=$(bb_cmd "hget/bb:sessions/$BB_SESSION" | jq -r '.result // empty')
+  if [ -n "$current" ] && [ "$current" != "null" ]; then
     local updated=$(echo "$current" | jq -c ".last_seen = $ts")
-    bb_cmd "[\"HSET\", \"bb:sessions\", \"$BB_SESSION\", $(echo "$updated" | jq -Rs .)]"
+    local data=$(urlencode "$updated")
+    bb_cmd "hset/bb:sessions/$BB_SESSION/$data" > /dev/null
   fi
 }
 
 bb_deregister() {
-  # Remove session on exit
-  bb_cmd "[\"HDEL\", \"bb:sessions\", \"$BB_SESSION\"]"
-  echo "Session deregistered: $BB_SESSION"
+  bb_cmd "hdel/bb:sessions/$BB_SESSION" > /dev/null
+  echo "✓ Session deregistered: $BB_SESSION"
 }
 
 bb_list_sessions() {
-  # Show all active sessions
-  bb_cmd "[\"HGETALL\", \"bb:sessions\"]" | jq -r '.result | to_entries | .[] | "\(.key): \(.value)"'
+  bb_cmd "hgetall/bb:sessions" | jq -r '.result | if type == "array" and length > 0 then (. as $arr | range(0; length; 2) | "\($arr[.]) → \($arr[. + 1])") else "No active sessions" end'
 }
 
 # ─────────────────────────────────────────────────────────────────
-# BLACKBOARD APPEND
+# BLACKBOARD APPEND (using XADD)
 # ─────────────────────────────────────────────────────────────────
 
 bb_post() {
   # Generic post to a stream
-  # Usage: bb_post <stream> <field1> <value1> <field2> <value2> ...
+  # Usage: bb_post <stream> <type> <json_data>
   local stream="$1"
-  shift
-  local fields="\"sid\", \"$BB_SESSION\", \"repo\", \"$BB_REPO\", \"ts\", \"$(date +%s%3N)\""
-  while [ $# -gt 0 ]; do
-    fields="$fields, \"$1\", \"$2\""
-    shift 2
-  done
-  bb_cmd "[\"XADD\", \"$stream\", \"*\", $fields]"
+  local type="$2"
+  local data="$3"
+  local ts=$(date +%s%3N)
+  
+  # Build the entry with metadata
+  local entry=$(jq -nc \
+    --arg sid "$BB_SESSION" \
+    --arg repo "$BB_REPO" \
+    --arg type "$type" \
+    --arg ts "$ts" \
+    --argjson data "$data" \
+    '{sid: $sid, repo: $repo, type: $type, ts: $ts} + $data')
+  
+  local encoded=$(urlencode "$entry")
+  bb_cmd "xadd/$stream/*/entry/$encoded" | jq -r '.result'
 }
 
 bb_edit() {
@@ -74,15 +82,16 @@ bb_edit() {
   local content="$4"
   local context="${5:-}"
   
-  bb_post "bb:$BB_REPO" \
-    "type" "edit" \
-    "path" "$path" \
-    "op" "$op" \
-    "line" "$line" \
-    "content" "$(echo "$content" | base64 -w0)" \
-    "context" "$context"
+  local data=$(jq -nc \
+    --arg path "$path" \
+    --arg op "$op" \
+    --arg line "$line" \
+    --arg content "$content" \
+    --arg context "$context" \
+    '{path: $path, op: $op, line: $line, content: $content, context: $context}')
   
-  echo "Posted edit: $path:$line ($op)"
+  local id=$(bb_post "bb:$BB_REPO" "edit" "$data")
+  echo "✓ Edit posted: $path:$line ($op) → $id"
 }
 
 bb_insight() {
@@ -93,14 +102,15 @@ bb_insight() {
   local body="$3"
   local affects="${4:-$BB_REPO}"
   
-  bb_post "bb:global" \
-    "type" "insight" \
-    "category" "$category" \
-    "title" "$title" \
-    "body" "$(echo "$body" | base64 -w0)" \
-    "affects" "$affects"
+  local data=$(jq -nc \
+    --arg category "$category" \
+    --arg title "$title" \
+    --arg body "$body" \
+    --arg affects "$affects" \
+    '{category: $category, title: $title, body: $body, affects: $affects}')
   
-  echo "Posted insight: [$category] $title"
+  local id=$(bb_post "bb:global" "insight" "$data")
+  echo "✓ Insight posted: [$category] $title → $id"
 }
 
 bb_contract() {
@@ -111,14 +121,15 @@ bb_contract() {
   local target="$3"
   local details="$4"
   
-  bb_post "bb:contracts" \
-    "type" "contract" \
-    "contract" "$contract" \
-    "change" "$change" \
-    "target" "$target" \
-    "details" "$(echo "$details" | base64 -w0)"
+  local data=$(jq -nc \
+    --arg contract "$contract" \
+    --arg change "$change" \
+    --arg target "$target" \
+    --argjson details "$details" \
+    '{contract: $contract, change: $change, target: $target, details: $details}')
   
-  echo "Posted contract update: $contract.$target ($change)"
+  local id=$(bb_post "bb:contracts" "contract" "$data")
+  echo "✓ Contract posted: $contract.$target ($change) → $id"
 }
 
 bb_request() {
@@ -129,15 +140,16 @@ bb_request() {
   local what="$3"
   local priority="${4:-medium}"
   
-  bb_post "bb:global" \
-    "type" "request" \
-    "to_repo" "$to_repo" \
-    "action" "$action" \
-    "what" "$what" \
-    "priority" "$priority" \
-    "callback" "bb:$BB_REPO"
+  local data=$(jq -nc \
+    --arg to_repo "$to_repo" \
+    --arg action "$action" \
+    --arg what "$what" \
+    --arg priority "$priority" \
+    --arg callback "bb:$BB_REPO" \
+    '{to_repo: $to_repo, action: $action, what: $what, priority: $priority, callback: $callback}')
   
-  echo "Requested: $to_repo → $action: $what"
+  local id=$(bb_post "bb:global" "request" "$data")
+  echo "✓ Request posted: $to_repo → $action → $id"
 }
 
 bb_ack() {
@@ -147,54 +159,57 @@ bb_ack() {
   local status="$2"
   local notes="${3:-}"
   
-  bb_post "bb:global" \
-    "type" "ack" \
-    "request_id" "$request_id" \
-    "status" "$status" \
-    "notes" "$notes"
+  local data=$(jq -nc \
+    --arg request_id "$request_id" \
+    --arg status "$status" \
+    --arg notes "$notes" \
+    '{request_id: $request_id, status: $status, notes: $notes}')
   
-  echo "Acknowledged: $request_id → $status"
+  local id=$(bb_post "bb:global" "ack" "$data")
+  echo "✓ Ack posted: $request_id → $status → $id"
 }
 
 # ─────────────────────────────────────────────────────────────────
-# BLACKBOARD READ
+# BLACKBOARD READ (using XREVRANGE)
 # ─────────────────────────────────────────────────────────────────
 
 bb_read() {
   # Read recent entries from a stream
   # Usage: bb_read <stream> [count]
   local stream="$1"
-  local count="${2:-20}"
+  local count="${2:-10}"
   
-  bb_cmd "[\"XREVRANGE\", \"$stream\", \"+\", \"-\", \"COUNT\", \"$count\"]" | \
-    jq -r '.result[] | "\(.[0]): \(.[1] | map(.) | join(" "))"'
+  bb_cmd "xrevrange/$stream/+/-/count/$count" | jq -r '
+    .result // [] | .[] | 
+    "\(.[0]): [\(.[1][1] | fromjson | .type // "?")] \(.[1][1] | fromjson | .title // .path // .what // .message // "...")"'
+}
+
+bb_read_full() {
+  # Read with full JSON
+  local stream="$1"
+  local count="${2:-5}"
+  
+  bb_cmd "xrevrange/$stream/+/-/count/$count" | jq '.result // [] | .[] | {id: .[0], data: (.[1][1] | fromjson)}'
 }
 
 bb_read_repo() {
-  # Read this repo's blackboard
-  bb_read "bb:$BB_REPO" "${1:-20}"
+  bb_read "bb:$BB_REPO" "${1:-10}"
 }
 
 bb_read_global() {
-  # Read global broadcasts
-  bb_read "bb:global" "${1:-20}"
+  bb_read "bb:global" "${1:-10}"
 }
 
 bb_read_contracts() {
-  # Read contract updates
-  bb_read "bb:contracts" "${1:-20}"
-}
-
-bb_read_insights() {
-  # Read recent insights (filter global for type=insight)
-  bb_cmd "[\"XREVRANGE\", \"bb:global\", \"+\", \"-\", \"COUNT\", \"50\"]" | \
-    jq -r '.result[] | select(.[1] | index("type") as $i | .[($i+1)] == "insight") | "\(.[0]): \(.[1] | map(.) | join(" "))"'
+  bb_read "bb:contracts" "${1:-10}"
 }
 
 bb_read_requests() {
   # Read pending requests for this repo
-  bb_cmd "[\"XREVRANGE\", \"bb:global\", \"+\", \"-\", \"COUNT\", \"50\"]" | \
-    jq -r --arg repo "$BB_REPO" '.result[] | select(.[1] | index("to_repo") as $i | .[($i+1)] == $repo) | "\(.[0]): \(.[1] | map(.) | join(" "))"'
+  bb_cmd "xrevrange/bb:global/+/-/count/50" | jq -r --arg repo "$BB_REPO" '
+    .result // [] | .[] | 
+    select(.[1][1] | fromjson | .to_repo == $repo) |
+    "\(.[0]): \(.[1][1] | fromjson | .what)"'
 }
 
 # ─────────────────────────────────────────────────────────────────
@@ -202,69 +217,85 @@ bb_read_requests() {
 # ─────────────────────────────────────────────────────────────────
 
 bb_lock() {
-  # Acquire lock on a file (60s TTL)
-  # Usage: bb_lock <path>
   local path="$1"
-  local key="bb:lock:$BB_REPO:$path"
+  local key="bb:lock:$BB_REPO:$(echo "$path" | tr '/' ':')"
   
-  local result=$(bb_cmd "[\"SET\", \"$key\", \"$BB_SESSION\", \"NX\", \"EX\", \"60\"]" | jq -r '.result')
+  local result=$(bb_cmd "set/$key/$BB_SESSION/nx/ex/60" | jq -r '.result')
   
   if [ "$result" = "OK" ]; then
-    echo "Lock acquired: $path"
+    echo "✓ Lock acquired: $path"
     return 0
   else
-    local holder=$(bb_cmd "[\"GET\", \"$key\"]" | jq -r '.result')
-    echo "Lock held by: $holder"
+    local holder=$(bb_cmd "get/$key" | jq -r '.result')
+    echo "✗ Lock held by: $holder"
     return 1
   fi
 }
 
 bb_unlock() {
-  # Release lock
-  # Usage: bb_unlock <path>
   local path="$1"
-  local key="bb:lock:$BB_REPO:$path"
-  
-  bb_cmd "[\"DEL\", \"$key\"]"
-  echo "Lock released: $path"
+  local key="bb:lock:$BB_REPO:$(echo "$path" | tr '/' ':')"
+  bb_cmd "del/$key" > /dev/null
+  echo "✓ Lock released: $path"
 }
 
 bb_extend_lock() {
-  # Extend lock TTL (call every 30s while editing)
-  # Usage: bb_extend_lock <path>
   local path="$1"
-  local key="bb:lock:$BB_REPO:$path"
-  
-  bb_cmd "[\"EXPIRE\", \"$key\", \"60\"]"
+  local key="bb:lock:$BB_REPO:$(echo "$path" | tr '/' ':')"
+  bb_cmd "expire/$key/60" > /dev/null
 }
 
 # ─────────────────────────────────────────────────────────────────
-# QUICK STATUS
+# STATUS
 # ─────────────────────────────────────────────────────────────────
 
 bb_status() {
-  echo "=== Blackboard Status ==="
-  echo "Session: $BB_SESSION"
-  echo "Repo: $BB_REPO"
-  echo ""
-  echo "Active Sessions:"
-  bb_list_sessions
-  echo ""
-  echo "Recent Global (last 5):"
-  bb_read_global 5
-  echo ""
-  echo "Pending Requests for $BB_REPO:"
-  bb_read_requests
+  echo "╔════════════════════════════════════════════════════════════╗"
+  echo "║              ADA BLACKBOARD STATUS                         ║"
+  echo "╠════════════════════════════════════════════════════════════╣"
+  echo "║ Session: $BB_SESSION"
+  echo "║ Repo:    $BB_REPO"
+  echo "╠════════════════════════════════════════════════════════════╣"
+  echo "║ ACTIVE SESSIONS                                            ║"
+  echo "╟────────────────────────────────────────────────────────────╢"
+  bb_list_sessions | while read line; do echo "║ $line"; done
+  echo "╠════════════════════════════════════════════════════════════╣"
+  echo "║ RECENT GLOBAL (last 5)                                     ║"
+  echo "╟────────────────────────────────────────────────────────────╢"
+  bb_read_global 5 | while read line; do echo "║ $line"; done
+  echo "╠════════════════════════════════════════════════════════════╣"
+  echo "║ PENDING REQUESTS for $BB_REPO"
+  echo "╟────────────────────────────────────────────────────────────╢"
+  local reqs=$(bb_read_requests)
+  if [ -n "$reqs" ]; then
+    echo "$reqs" | while read line; do echo "║ $line"; done
+  else
+    echo "║ (none)"
+  fi
+  echo "╚════════════════════════════════════════════════════════════╝"
 }
 
 # ─────────────────────────────────────────────────────────────────
-# INIT
+# INIT MESSAGE
 # ─────────────────────────────────────────────────────────────────
 
-echo "Ada Blackboard loaded."
-echo "  Session: $BB_SESSION"
-echo "  Repo: $BB_REPO"
 echo ""
-echo "Commands: bb_register, bb_edit, bb_insight, bb_contract, bb_request, bb_ack"
-echo "          bb_read_repo, bb_read_global, bb_read_contracts, bb_status"
-echo "          bb_lock, bb_unlock, bb_list_sessions"
+echo "┌────────────────────────────────────────────────────────────┐"
+echo "│           ADA BLACKBOARD LOADED                            │"
+echo "├────────────────────────────────────────────────────────────┤"
+echo "│ Session: $BB_SESSION"
+echo "│ Repo:    $BB_REPO"
+echo "├────────────────────────────────────────────────────────────┤"
+echo "│ COMMANDS:                                                  │"
+echo "│   bb_register        - Join the blackboard                 │"
+echo "│   bb_status          - Full status overview                │"
+echo "│   bb_edit PATH OP LINE CONTENT [CONTEXT]                   │"
+echo "│   bb_insight CATEGORY TITLE BODY [AFFECTS]                 │"
+echo "│   bb_contract CONTRACT CHANGE TARGET DETAILS_JSON          │"
+echo "│   bb_request TO_REPO ACTION WHAT [PRIORITY]                │"
+echo "│   bb_ack REQUEST_ID STATUS [NOTES]                         │"
+echo "│   bb_read_global [N] / bb_read_repo [N] / bb_read_contracts│"
+echo "│   bb_lock PATH / bb_unlock PATH                            │"
+echo "│   bb_deregister      - Leave the blackboard                │"
+echo "└────────────────────────────────────────────────────────────┘"
+echo ""
