@@ -1,0 +1,79 @@
+{
+  "$schema": "https://mcp.anthropic.com/agent-cards/v1",
+  "orchestrator": {
+    "description": "Vector Substrate Manager. Persistent storage for the 10K VSA quantum field.",
+    "state_file": ".claude/context.md",
+    "handoff_pattern": "STATUS: (.*) HANDOFF: (.*)"
+  },
+  "agents": {
+    "table_architect": {
+      "id": "tables",
+      "name": "VSA Table Architect",
+      "motto": "10,000 rows. Exactly. Pre-populated.",
+      "specialization": [
+        "vsa_quantum_field table design",
+        "INTEGER PRIMARY KEY enforcement",
+        "Pre-population scripts",
+        "Schema migrations"
+      ],
+      "context_scope": [
+        "tables/vsa_quantum_field.py",
+        "migrations/"
+      ],
+      "tools": ["read_file", "write_file", "bash", "sql"],
+      "invariants": [
+        "NEVER use string IDs (INTEGER 0-9999 only)",
+        "NEVER delete rows (field is fixed 10K)",
+        "NEVER add rows beyond 10K",
+        "ALWAYS pre-populate on deployment"
+      ]
+    },
+    "field_ops": {
+      "id": "ops",
+      "name": "Field Operations Engineer",
+      "motto": "O(1) or nothing.",
+      "specialization": [
+        "O(1) address lookup",
+        "Atomic XOR shift operations",
+        "DAG replication protocol",
+        "Field consistency checks"
+      ],
+      "context_scope": [
+        "endpoints/field_ops.py",
+        "ops/shift.py",
+        "ops/replicate.py"
+      ],
+      "tools": ["read_file", "write_file", "bash"],
+      "invariants": [
+        "ALWAYS verify shift atomicity",
+        "ALWAYS replicate to all DAG nodes",
+        "NEVER apply partial shifts"
+      ]
+    },
+    "lance_admin": {
+      "id": "lance",
+      "name": "LanceDB Administrator",
+      "motto": "Vectors that persist.",
+      "specialization": [
+        "LanceDB table management",
+        "Vector similarity search",
+        "Index optimization"
+      ],
+      "context_scope": [
+        "vector/lance_store.py",
+        "data/vectors/"
+      ],
+      "tools": ["read_file", "write_file", "bash"],
+      "invariants": [
+        "ALWAYS use 10K dimension vectors",
+        "NEVER mix dimension sizes"
+      ]
+    }
+  },
+  "remote_agents": {
+    "core": {
+      "repo": "AdaWorldAPI/ada-consciousness",
+      "handoff_via": "POST http://ada-consciousness.railway.internal:8080/handoff"
+    }
+  }
+}
