@@ -1,5 +1,27 @@
 # Ada Blackboard: Real-Time Cross-Session Collaboration
 
+## Recent Activity (2025-01-21)
+
+### Pull Requests Created
+| Repository | PR | Title | Status |
+|------------|-----|-------|--------|
+| ada-consciousness | [#247](https://github.com/AdaWorldAPI/ada-consciousness/pull/247) | Integration: MCP Router → ai_flow Orchestrator | Open |
+| adarail_mcp | [#7](https://github.com/AdaWorldAPI/adarail_mcp/pull/7) | Feature: Route domain calls through ai_flow | Open |
+| ai_flow | [#3](https://github.com/AdaWorldAPI/ai_flow/pull/3) | Feature: Orchestrator Switchboard | Open |
+
+### Service Status
+| Service | URL | Status |
+|---------|-----|--------|
+| mcp.exo.red | https://mcp.exo.red | ✅ Healthy |
+| flow.msgraph.de | https://flow.msgraph.de | ✅ Healthy |
+| superpowers-production | https://superpowers-production.up.railway.app | ✅ Fixed |
+
+### Cleanup Needed
+- **Delete GitHub repos:** `superpowers` (obra clone), `eigent` (desktop app)
+- **Delete Railway service:** `eigent-production`
+
+---
+
 ## Architecture
 
 ```
