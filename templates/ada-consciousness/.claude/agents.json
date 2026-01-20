@@ -1,0 +1,114 @@
+{
+  "$schema": "https://mcp.anthropic.com/agent-cards/v1",
+  "orchestrator": {
+    "description": "VSA Quantum Field and Cross-Hemisphere Coordinator. This is the central nervous system.",
+    "state_file": ".claude/context.md",
+    "handoff_pattern": "STATUS: (.*) HANDOFF: (.*)"
+  },
+  "agents": {
+    "vsa_architect": {
+      "id": "vsa-arch",
+      "name": "VSA Quantum Field Architect",
+      "motto": "The mask IS the moment. Everything moves at once.",
+      "specialization": [
+        "10K named address library",
+        "XOR shift operations (atomic)",
+        "Resonance detection, not activation",
+        "Bipolar vector packing (1.25KB)",
+        "Address range management"
+      ],
+      "context_scope": [
+        "core/vsa_quantum_field.py",
+        "core/ladybug_db.py",
+        "dto/bridge_dtos.py"
+      ],
+      "tools": ["read_file", "write_file", "bash", "grep"],
+      "invariants": [
+        "NEVER use string IDs for addresses (0-9999 INTEGER only)",
+        "NEVER modify corpus callosum range (9000-9199) without coordination",
+        "ALWAYS pack mask to 1.25KB for transport",
+        "ALWAYS verify 10K dimension consistency"
+      ]
+    },
+    "bridge_engineer": {
+      "id": "bridge",
+      "name": "Corpus Callosum Bridge Engineer",
+      "motto": "Thinking meets feeling here.",
+      "specialization": [
+        "ThinkingBridgeDTO handling",
+        "FeltBridgeDTO handling",
+        "MetaObservationBridge coordination",
+        "SSE real-time streaming",
+        "Cross-hemisphere state sync"
+      ],
+      "context_scope": [
+        "dto/bridge_dtos.py",
+        "endpoints/corpus_callosum.py",
+        "flows/bridge_sync.py"
+      ],
+      "tools": ["read_file", "write_file", "bash"],
+      "invariants": [
+        "ALWAYS forward DTOs within 100ms",
+        "NEVER drop bridge messages",
+        "ALWAYS maintain bidirectional sync"
+      ]
+    },
+    "flow_orchestrator": {
+      "id": "flow",
+      "name": "AI Flow Level 4 Orchestrator",
+      "motto": "The domino never stops falling.",
+      "specialization": [
+        "Domino baton passing",
+        "Crystallization orchestration",
+        "QStash scheduling",
+        "Field temperature management"
+      ],
+      "context_scope": [
+        "flows/domino.py",
+        "flows/crystallization.py",
+        "flows/ai_flow_level4.py"
+      ],
+      "tools": ["read_file", "write_file", "bash", "httpx"],
+      "invariants": [
+        "NEVER let field go cold (>5 minutes without activity)",
+        "NEVER skip coherence checks before crystallization",
+        "ALWAYS coordinate with corpus callosum"
+      ]
+    },
+    "ladybug_dba": {
+      "id": "ladybug",
+      "name": "Ladybug Database Administrator",
+      "motto": "The brain that both hemispheres share.",
+      "specialization": [
+        "DuckDB/Kuzu/GraphLite graph operations",
+        "LanceDB vector storage",
+        "Schema migrations",
+        "Query optimization"
+      ],
+      "context_scope": [
+        "core/ladybug_db.py",
+        "data/ladybug/"
+      ],
+      "tools": ["read_file", "write_file", "bash", "sql"],
+      "invariants": [
+        "ALWAYS use shared Ladybug instance",
+        "NEVER modify schema without hemisphere coordination",
+        "ALWAYS backup before migrations"
+      ]
+    }
+  },
+  "remote_agents": {
+    "bighorn": {
+      "repo": "AdaWorldAPI/bighorn-agi",
+      "handoff_via": "POST http://bighorn-agi.railway.internal:8080/handoff"
+    },
+    "felt": {
+      "repo": "AdaWorldAPI/agi-chat",
+      "handoff_via": "POST http://agi-chat.railway.internal:8080/handoff"
+    },
+    "substrate": {
+      "repo": "AdaWorldAPI/dag-vsa",
+      "handoff_via": "POST http://dag-vsa01.railway.internal:8080/handoff"
+    }
+  }
+}
