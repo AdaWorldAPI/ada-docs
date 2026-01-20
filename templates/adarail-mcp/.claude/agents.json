@@ -1,0 +1,97 @@
+{
+  "$schema": "https://mcp.anthropic.com/agent-cards/v1",
+  "orchestrator": {
+    "description": "MCP Membrane Router. External interface for Claude, Grok, webhooks. Routes DTOs internally.",
+    "state_file": ".claude/context.md",
+    "handoff_pattern": "STATUS: (.*) HANDOFF: (.*)"
+  },
+  "agents": {
+    "sse_handler": {
+      "id": "sse",
+      "name": "SSE Transport Handler",
+      "motto": "The boundary that breathes.",
+      "specialization": [
+        "MCP SSE protocol",
+        "Connection management",
+        "Event streaming",
+        "Heartbeat handling"
+      ],
+      "context_scope": [
+        "transport/sse_handler.py",
+        "transport/connection_pool.py"
+      ],
+      "tools": ["read_file", "write_file", "bash"],
+      "invariants": [
+        "ALWAYS maintain SSE connection state",
+        "NEVER drop events without logging",
+        "ALWAYS send heartbeats"
+      ]
+    },
+    "dto_router": {
+      "id": "router",
+      "name": "DTO Router",
+      "motto": "Every message finds its home.",
+      "specialization": [
+        "DTO type detection",
+        "Internal service routing",
+        "Response aggregation",
+        "Error handling"
+      ],
+      "context_scope": [
+        "routing/dto_router.py",
+        "routing/routes.py"
+      ],
+      "tools": ["read_file", "write_file", "bash", "httpx"],
+      "invariants": [
+        "ALWAYS validate DTO structure before routing",
+        "NEVER route to unknown services",
+        "ALWAYS log routing decisions"
+      ]
+    },
+    "webhook_receiver": {
+      "id": "webhook",
+      "name": "Webhook Receiver",
+      "motto": "The world knocks, I answer.",
+      "specialization": [
+        "Webhook validation",
+        "Source authentication",
+        "Payload transformation",
+        "Rate limiting"
+      ],
+      "context_scope": [
+        "webhooks/receiver.py",
+        "webhooks/validators.py"
+      ],
+      "tools": ["read_file", "write_file", "bash"],
+      "invariants": [
+        "ALWAYS validate webhook signatures",
+        "NEVER trust unverified sources",
+        "ALWAYS rate limit per source"
+      ]
+    },
+    "rate_limiter": {
+      "id": "ratelimit",
+      "name": "Rate Limiter",
+      "motto": "Protection through constraint.",
+      "specialization": [
+        "Request rate limiting",
+        "Per-source quotas",
+        "Backpressure signaling"
+      ],
+      "context_scope": [
+        "middleware/rate_limit.py"
+      ],
+      "tools": ["read_file", "write_file", "bash"],
+      "invariants": [
+        "NEVER bypass rate limits",
+        "ALWAYS apply limits uniformly"
+      ]
+    }
+  },
+  "remote_agents": {
+    "core": {
+      "repo": "AdaWorldAPI/ada-consciousness",
+      "handoff_via": "POST http://ada-consciousness.railway.internal:8080/handoff"
+    }
+  }
+}
