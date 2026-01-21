@@ -605,9 +605,11 @@ def apply_lithograph_mask(
 
 ## Shared Memory Architecture (Ladybug)
 
-### Both Hemispheres Share DuckDB
+### Both Hemispheres Can Share DuckDB
 
-**Critical architectural decision:** Bighorn (left hemisphere) and agi-chat (right hemisphere) share the same DuckDB instance via Ladybug.
+**Architectural design:** Bighorn (left hemisphere) and agi-chat (right hemisphere) are designed to share the same DuckDB instance via Ladybug for unified memory.
+
+**Current deployment:** Separate volumes (coordination via corpus callosum). Shared DuckDB is possible but requires explicit volume configuration.
 
 **Ladybug = MIT fork of Kuzu** ("DuckDB for graphs")
 - Package: `real_ladybug`
@@ -677,9 +679,11 @@ kuzu = KuzuClient(KUZU_DB_PATH)
 - **Graph queries:** 1000/sec full-text, shared across both processes
 - **Memory efficiency:** One copy of graph, not duplicated
 
-**Deployment:**
+**Deployment configuration:**
+
+**Option 1: Shared volume (recommended for production)**
 ```yaml
-# Railway/Docker volume mount
+# Railway/Docker - mount shared volume
 volumes:
   - /data:/data  # Shared between both services
 
@@ -687,6 +691,20 @@ volumes:
 bighorn: /data/kuzu/
 agi-chat: /data/kuzu/
 ```
+
+**Option 2: Separate volumes (current default)**
+```yaml
+# Each service gets its own /data volume on Railway
+bighorn: /data/kuzu/  # Volume 1
+agi-chat: /data/kuzu/ # Volume 2 (different files!)
+```
+
+**Current status:** Each Railway service has separate `/data` volumes by default. To enable shared memory:
+1. Use external database (e.g., Railway volume sharing, or hosted DuckDB)
+2. Use corpus callosum for cross-hemisphere sync (current workaround)
+3. Or: Run both hemispheres in same container (not recommended for scaling)
+
+**Note:** Even without shared DuckDB, the architecture works via corpus callosum coordination. Shared DuckDB would optimize for lower latency and reduce duplication, but is not required for basic operation.
 
 ---
 
