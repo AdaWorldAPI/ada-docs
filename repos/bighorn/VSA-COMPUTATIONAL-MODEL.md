@@ -744,107 +744,163 @@ agi-chat: /data/kuzu/ # Volume 2 (different files!)
 └─────────────────────────────────────────────────────┘
 ```
 
-### n8n Flow Orchestration via PostgreSQL
+### ai_flow Flow Orchestration (n8n-Compatible)
 
-**Critical existing integration:** n8n workflow automation already uses PostgreSQL for persistence.
+**Critical architectural component:** Custom ai_flow engine, 100% n8n syntax-compatible, with QStash-driven execution.
 
-**What's already working:**
+**What's deployed:**
 ```
 ┌─────────────────────────────────────────────────────┐
-│  n8n Workflow Engine                                │
-│  - Visual workflow builder                          │
-│  - 400+ integrations                                │
-│  - Stores nodes/connections in PostgreSQL           │
+│  QStash (Upstash)                                   │
+│  - 5-minute tick scheduler                          │
+│  - Triggers ai_flow execution                       │
 └────────────────┬────────────────────────────────────┘
                  ↓
 ┌─────────────────────────────────────────────────────┐
-│  PostgreSQL (Railway tenant)                        │
-│  - n8n_workflows table (workflow definitions)       │
-│  - n8n_executions table (execution history)         │
-│  - n8n_credentials table (encrypted secrets)        │
+│  ai_flow Engine (flow.msgraph.de)                   │
+│  - 100% n8n syntax compatible                       │
+│  - Custom implementation (not official n8n)         │
+│  - Processes workflow definitions                   │
+│  - https://flow.msgraph.de/docs                     │
+└────────────────┬────────────────────────────────────┘
+                 ↓
+┌─────────────────────────────────────────────────────┐
+│  PostgreSQL (Railway tenant) - Optional             │
+│  - Can persist workflow definitions                 │
+│  - Execution history                                │
+│  - State between ticks                              │
 └─────────────────────────────────────────────────────┘
 ```
 
-**n8n PostgreSQL Schema (simplified):**
-```sql
--- Workflow definitions (the "flow")
-CREATE TABLE n8n_workflows (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255),
-    nodes JSONB,              -- Visual workflow nodes
-    connections JSONB,         -- How nodes are wired
-    active BOOLEAN,
-    settings JSONB,
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP
-);
+**Key differences from official n8n:**
+- **Custom implementation**: ai_flow is your own n8n-compatible engine
+- **QStash-driven**: 5-minute tick from QStash (not self-hosted cron)
+- **Syntax compatible**: Can use n8n workflow JSON format
+- **Hosted at**: flow.msgraph.de (not n8n.io)
 
--- Execution history
-CREATE TABLE n8n_executions (
-    id SERIAL PRIMARY KEY,
-    workflow_id INTEGER REFERENCES n8n_workflows(id),
-    data JSONB,               -- Input/output data
-    finished BOOLEAN,
-    mode VARCHAR(50),         -- 'manual', 'trigger', 'webhook'
-    started_at TIMESTAMP,
-    stopped_at TIMESTAMP
-);
+**5-Minute Tick Architecture:**
+```
+┌─────────────────────────────────────────────────────┐
+│  QStash Scheduler (Upstash)                         │
+│  - Cron: "*/5 * * * *" (every 5 minutes)           │
+│  - Target: https://flow.msgraph.de/tick            │
+└────────────────┬────────────────────────────────────┘
+                 │ Every 5 minutes
+                 ↓
+┌─────────────────────────────────────────────────────┐
+│  ai_flow /tick endpoint                             │
+│  1. Check active workflows                          │
+│  2. Execute pending tasks                           │
+│  3. Trigger bighorn NARS operations                 │
+│  4. Store execution results                         │
+└─────────────────────────────────────────────────────┘
+```
+
+**n8n-Compatible Workflow Format:**
+```javascript
+// ai_flow uses standard n8n JSON format
+{
+  "name": "NARS Meta-Awareness Flow",
+  "nodes": [
+    {
+      "type": "n8n-nodes-base.cron",
+      "name": "5min Tick",
+      "parameters": {
+        "triggerTimes": {
+          "item": [{"mode": "everyX", "value": 5}]
+        }
+      }
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "name": "Query Bighorn Meta",
+      "parameters": {
+        "url": "https://bighorn.railway.internal:8080/meta/insights",
+        "method": "GET"
+      }
+    },
+    {
+      "type": "n8n-nodes-base.code",
+      "name": "Process NARS Insights",
+      "parameters": {
+        "jsCode": "// Process insights\nreturn items;"
+      }
+    }
+  ],
+  "connections": {
+    "5min Tick": {"main": [[{"node": "Query Bighorn Meta"}]]},
+    "Query Bighorn Meta": {"main": [[{"node": "Process NARS Insights"}]]}
+  }
+}
 ```
 
 **Integration with Bighorn:**
 
-**1. Trigger bighorn via n8n webhook**
+**1. QStash triggers ai_flow every 5 minutes**
+```bash
+# QStash configuration (Upstash)
+curl -X POST "https://qstash.upstash.io/v2/schedules" \
+  -H "Authorization: Bearer $QSTASH_TOKEN" \
+  -d '{
+    "destination": "https://flow.msgraph.de/tick",
+    "cron": "*/5 * * * *"
+  }'
+```
+
+**2. ai_flow executes n8n-compatible workflows**
 ```javascript
-// n8n workflow node
+// Workflow stored in ai_flow (n8n format)
 {
   "nodes": [
     {
-      "type": "n8n-nodes-base.webhook",
-      "name": "Wireshark Trigger",
-      "webhookId": "wireshark-event"
+      "type": "n8n-nodes-base.httpRequest",
+      "name": "Query Bighorn Meta-Awareness",
+      "parameters": {
+        "url": "https://bighorn.railway.internal:8080/meta/insights",
+        "method": "GET"
+      }
     },
     {
       "type": "n8n-nodes-base.httpRequest",
-      "name": "Call Bighorn NARS",
-      "url": "https://bighorn.railway.internal:8080/nars/counterfactual",
-      "method": "POST"
+      "name": "Call NARS Counterfactual",
+      "parameters": {
+        "url": "https://bighorn.railway.internal:8080/nars/counterfactual",
+        "method": "POST",
+        "jsonParameters": true,
+        "options": {}
+      }
     }
   ]
 }
 ```
 
-**2. Bighorn can query n8n workflows via PostgreSQL**
+**3. Bighorn can query ai_flow workflows via API**
 ```python
-# Query active workflows directly from PostgreSQL
-async def get_active_flows(pg: PostgresClient):
-    """Get n8n flows that involve bighorn."""
-    return await pg.fetch("""
-        SELECT
-            id,
-            name,
-            nodes->>'bighorn' as bighorn_config,
-            active
-        FROM n8n_workflows
-        WHERE nodes::text LIKE '%bighorn%'
-          AND active = true
-    """)
+# Query ai_flow for active workflows
+async def get_active_flows():
+    """Get ai_flow workflows that involve bighorn."""
+    response = await httpx.get("https://flow.msgraph.de/api/workflows/active")
+    return [
+        w for w in response.json()
+        if 'bighorn' in str(w.get('nodes', []))
+    ]
 ```
 
-**3. Store NARS insights → trigger n8n workflows**
+**4. Store NARS insights → trigger ai_flow webhook**
 ```python
-# When meta-awareness detects pattern, trigger n8n workflow
+# When meta-awareness detects pattern, trigger ai_flow
 async def trigger_flow_adjustment(insight: MetaInsight):
-    """Trigger n8n workflow based on NARS insight."""
+    """Trigger ai_flow workflow based on NARS insight."""
 
-    # Store insight in PostgreSQL (shared with n8n)
+    # Store insight in PostgreSQL (queryable by ai_flow)
     await postgres.execute("""
         INSERT INTO ada_insights (type, details, timestamp)
         VALUES ($1, $2, NOW())
     """, insight.type, insight.details)
 
-    # Trigger n8n workflow via webhook
+    # Trigger ai_flow webhook (will execute on next 5min tick)
     await httpx.post(
-        "https://n8n.railway.internal/webhook/ada-insight",
+        "https://flow.msgraph.de/webhook/ada-insight",
         json={
             "insight_type": insight.type,
             "recommended_style": insight.recommended_style,
@@ -854,25 +910,32 @@ async def trigger_flow_adjustment(insight: MetaInsight):
 ```
 
 **Why this matters:**
-- **Flow orchestration is already persistent** via n8n + PostgreSQL
-- **No need for custom workflow engine** - n8n provides visual flow builder
-- **Bighorn can participate in flows** via webhooks and HTTP nodes
-- **PostgreSQL is the shared state** between n8n, bighorn, agi-chat
-- **Execution history is queryable** for meta-awareness feedback
+- **Custom ai_flow implementation** - 100% n8n syntax compatible, your own engine
+- **QStash-driven execution** - Reliable 5-minute tick from Upstash
+- **Bighorn integrates via HTTP** - Workflows call bighorn NARS endpoints
+- **PostgreSQL optional** - Can persist state, but ai_flow might use different storage
+- **Execution predictable** - Fixed 5-minute cadence, not event-driven
 
-**Architecture diagram with n8n:**
+**Architecture diagram with ai_flow + QStash:**
 ```
 ┌─────────────────────────────────────────────────────┐
-│  n8n (Flow Orchestration)                           │
-│  - Workflows stored in PostgreSQL                   │
-│  - Triggers bighorn NARS operations                 │
+│  QStash (Upstash Scheduler)                         │
+│  - 5-minute cron tick                               │
+└────────────────┬────────────────────────────────────┘
+                 │ */5 * * * *
+                 ↓
+┌─────────────────────────────────────────────────────┐
+│  ai_flow (flow.msgraph.de)                          │
+│  - n8n-compatible workflow engine                   │
+│  - Executes on each QStash tick                     │
+│  - Calls bighorn NARS operations                    │
 │  - Receives meta-awareness insights                 │
 └────────────────┬────────────────────────────────────┘
                  ↓
 ┌─────────────────────────────────────────────────────┐
 │  PostgreSQL (Railway tenant) - SHARED STATE         │
-│  - n8n workflows (flow definitions)                 │
-│  - n8n executions (history)                         │
+│  - ai_flow workflows (optional persistence)         │
+│  - Execution history (optional)                     │
 │  - ada_insights (NARS meta-awareness)               │
 │  - thoughts/concepts (from DuckDB backup)           │
 └────────┬────────────────────────┬───────────────────┘
@@ -1006,10 +1069,11 @@ async def sync_to_neo4j(pg: PostgresClient, neo4j: Neo4jClient):
 
 **Cost Analysis:**
 - DuckDB: Free (file storage)
-- PostgreSQL: Already provisioned for n8n (no additional cost)
-- n8n: Already running on Railway tenant
+- PostgreSQL: Already provisioned (no additional cost)
+- ai_flow: Already deployed at flow.msgraph.de (no additional cost)
+- QStash: Free tier 500 messages/day (5-min ticks = 288/day, well within limit)
 - Neo4j Aura: ~$65/month (AuraDB Free tier 50K nodes, optional)
-- Total: ~$65-70/month if adding Neo4j, otherwise $0 additional (uses existing PostgreSQL)
+- Total: **$0-65/month** (add Neo4j for analytics, otherwise free with existing infrastructure)
 
 **Failure Modes:**
 - If DuckDB corrupted → Restore from PostgreSQL (< 1 minute)
