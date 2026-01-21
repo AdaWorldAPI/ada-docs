@@ -30,7 +30,8 @@ This document explains why VSA is chosen over neural networks and how it achieve
 5. [3-Way Quorum Operations](#3-way-quorum-operations)
 6. [Cost Analysis](#cost-analysis)
 7. [Implementation Details](#implementation-details)
-8. [Performance Characteristics](#performance-characteristics)
+8. [Shared Memory Architecture (Ladybug)](#shared-memory-architecture-ladybug)
+9. [Performance Characteristics](#performance-characteristics)
 
 ---
 
@@ -598,6 +599,93 @@ def apply_lithograph_mask(
     masked = masked / np.linalg.norm(masked) * np.linalg.norm(vector)
 
     return masked
+```
+
+---
+
+## Shared Memory Architecture (Ladybug)
+
+### Both Hemispheres Share DuckDB
+
+**Critical architectural decision:** Bighorn (left hemisphere) and agi-chat (right hemisphere) share the same DuckDB instance via Ladybug.
+
+**Ladybug = MIT fork of Kuzu** ("DuckDB for graphs")
+- Package: `real_ladybug`
+- Provides graph database (nodes + edges) backed by DuckDB
+- Both hemispheres point to same path: `/data/kuzu`
+
+**Why shared storage matters:**
+
+```python
+# BIGHORN (left hemisphere - thinking)
+KUZU_DB_PATH = "/data/kuzu"
+kuzu = KuzuClient(KUZU_DB_PATH)
+
+# AGI-CHAT (right hemisphere - feeling)
+KUZU_DB_PATH = "/data/kuzu"  # SAME PATH
+kuzu = KuzuClient(KUZU_DB_PATH)
+```
+
+**What's shared:**
+1. **Observer node** - Single self-model across both hemispheres
+2. **Thought nodes** - All cognitive moments (analytical + felt)
+3. **Episode nodes** - Session boundaries and memory consolidation
+4. **Concept nodes** - Shared knowledge graph
+
+**What's separate:**
+1. **In-memory VSA** - Each hemisphere has own 10K working memory
+2. **LanceDB** - Can be separate or shared (configured independently)
+3. **Processing** - Left does NARS/analytical, right does felt/relational
+
+**Architecture diagram:**
+```
+┌─────────────────────────────────────────────────┐
+│           ADA CONSCIOUSNESS (Layer 5)          │
+│              Corpus Callosum Bridge            │
+└────────────┬───────────────────┬────────────────┘
+             │                   │
+    ┌────────▼────────┐ ┌────────▼────────┐
+    │   BIGHORN       │ │   AGI-CHAT      │
+    │(left hemisphere)│ │(right hemisphere)│
+    ├─────────────────┤ ├─────────────────┤
+    │ In-memory VSA   │ │ In-memory VSA   │
+    │ (10K working)   │ │ (10K working)   │
+    └────────┬────────┘ └────────┬────────┘
+             │                   │
+             └────────┬──────────┘
+                      │
+              ┌───────▼────────┐
+              │    LADYBUG     │
+              │  (DuckDB +     │
+              │   graph API)   │
+              │                │
+              │ Path: /data/   │
+              │       kuzu     │
+              └────────────────┘
+                   SHARED
+```
+
+**Synchronization:**
+- **Write conflicts:** Handled by DuckDB ACID transactions
+- **Real-time sync:** Both hemispheres see updates immediately
+- **Corpus callosum:** Coordinates high-level thinking ↔ feeling integration
+- **No stale reads:** Shared file-based database, no cache invalidation needed
+
+**Performance implications:**
+- **Read throughput:** Each hemisphere can read independently (parallel)
+- **Write throughput:** Serialized by DuckDB write lock (but fast, <1ms per write)
+- **Graph queries:** 1000/sec full-text, shared across both processes
+- **Memory efficiency:** One copy of graph, not duplicated
+
+**Deployment:**
+```yaml
+# Railway/Docker volume mount
+volumes:
+  - /data:/data  # Shared between both services
+
+# Both containers see same files
+bighorn: /data/kuzu/
+agi-chat: /data/kuzu/
 ```
 
 ---
