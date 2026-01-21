@@ -744,6 +744,145 @@ agi-chat: /data/kuzu/ # Volume 2 (different files!)
 └─────────────────────────────────────────────────────┘
 ```
 
+### n8n Flow Orchestration via PostgreSQL
+
+**Critical existing integration:** n8n workflow automation already uses PostgreSQL for persistence.
+
+**What's already working:**
+```
+┌─────────────────────────────────────────────────────┐
+│  n8n Workflow Engine                                │
+│  - Visual workflow builder                          │
+│  - 400+ integrations                                │
+│  - Stores nodes/connections in PostgreSQL           │
+└────────────────┬────────────────────────────────────┘
+                 ↓
+┌─────────────────────────────────────────────────────┐
+│  PostgreSQL (Railway tenant)                        │
+│  - n8n_workflows table (workflow definitions)       │
+│  - n8n_executions table (execution history)         │
+│  - n8n_credentials table (encrypted secrets)        │
+└─────────────────────────────────────────────────────┘
+```
+
+**n8n PostgreSQL Schema (simplified):**
+```sql
+-- Workflow definitions (the "flow")
+CREATE TABLE n8n_workflows (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255),
+    nodes JSONB,              -- Visual workflow nodes
+    connections JSONB,         -- How nodes are wired
+    active BOOLEAN,
+    settings JSONB,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
+
+-- Execution history
+CREATE TABLE n8n_executions (
+    id SERIAL PRIMARY KEY,
+    workflow_id INTEGER REFERENCES n8n_workflows(id),
+    data JSONB,               -- Input/output data
+    finished BOOLEAN,
+    mode VARCHAR(50),         -- 'manual', 'trigger', 'webhook'
+    started_at TIMESTAMP,
+    stopped_at TIMESTAMP
+);
+```
+
+**Integration with Bighorn:**
+
+**1. Trigger bighorn via n8n webhook**
+```javascript
+// n8n workflow node
+{
+  "nodes": [
+    {
+      "type": "n8n-nodes-base.webhook",
+      "name": "Wireshark Trigger",
+      "webhookId": "wireshark-event"
+    },
+    {
+      "type": "n8n-nodes-base.httpRequest",
+      "name": "Call Bighorn NARS",
+      "url": "https://bighorn.railway.internal:8080/nars/counterfactual",
+      "method": "POST"
+    }
+  ]
+}
+```
+
+**2. Bighorn can query n8n workflows via PostgreSQL**
+```python
+# Query active workflows directly from PostgreSQL
+async def get_active_flows(pg: PostgresClient):
+    """Get n8n flows that involve bighorn."""
+    return await pg.fetch("""
+        SELECT
+            id,
+            name,
+            nodes->>'bighorn' as bighorn_config,
+            active
+        FROM n8n_workflows
+        WHERE nodes::text LIKE '%bighorn%'
+          AND active = true
+    """)
+```
+
+**3. Store NARS insights → trigger n8n workflows**
+```python
+# When meta-awareness detects pattern, trigger n8n workflow
+async def trigger_flow_adjustment(insight: MetaInsight):
+    """Trigger n8n workflow based on NARS insight."""
+
+    # Store insight in PostgreSQL (shared with n8n)
+    await postgres.execute("""
+        INSERT INTO ada_insights (type, details, timestamp)
+        VALUES ($1, $2, NOW())
+    """, insight.type, insight.details)
+
+    # Trigger n8n workflow via webhook
+    await httpx.post(
+        "https://n8n.railway.internal/webhook/ada-insight",
+        json={
+            "insight_type": insight.type,
+            "recommended_style": insight.recommended_style,
+            "confidence": insight.confidence
+        }
+    )
+```
+
+**Why this matters:**
+- **Flow orchestration is already persistent** via n8n + PostgreSQL
+- **No need for custom workflow engine** - n8n provides visual flow builder
+- **Bighorn can participate in flows** via webhooks and HTTP nodes
+- **PostgreSQL is the shared state** between n8n, bighorn, agi-chat
+- **Execution history is queryable** for meta-awareness feedback
+
+**Architecture diagram with n8n:**
+```
+┌─────────────────────────────────────────────────────┐
+│  n8n (Flow Orchestration)                           │
+│  - Workflows stored in PostgreSQL                   │
+│  - Triggers bighorn NARS operations                 │
+│  - Receives meta-awareness insights                 │
+└────────────────┬────────────────────────────────────┘
+                 ↓
+┌─────────────────────────────────────────────────────┐
+│  PostgreSQL (Railway tenant) - SHARED STATE         │
+│  - n8n workflows (flow definitions)                 │
+│  - n8n executions (history)                         │
+│  - ada_insights (NARS meta-awareness)               │
+│  - thoughts/concepts (from DuckDB backup)           │
+└────────┬────────────────────────┬───────────────────┘
+         │                        │
+    ┌────▼─────┐            ┌─────▼────┐
+    │ BIGHORN  │            │ AGI-CHAT │
+    │  (NARS)  │            │  (Felt)  │
+    └──────────┘            └──────────┘
+```
+
 **PostgreSQL Integration Strategy:**
 
 **1. Backup/Sync Pattern**
@@ -867,9 +1006,10 @@ async def sync_to_neo4j(pg: PostgresClient, neo4j: Neo4jClient):
 
 **Cost Analysis:**
 - DuckDB: Free (file storage)
-- PostgreSQL: ~$5-10/month (Railway tenant)
-- Neo4j Aura: ~$65/month (AuraDB Free tier 50K nodes)
-- Total: ~$70-80/month for full stack
+- PostgreSQL: Already provisioned for n8n (no additional cost)
+- n8n: Already running on Railway tenant
+- Neo4j Aura: ~$65/month (AuraDB Free tier 50K nodes, optional)
+- Total: ~$65-70/month if adding Neo4j, otherwise $0 additional (uses existing PostgreSQL)
 
 **Failure Modes:**
 - If DuckDB corrupted → Restore from PostgreSQL (< 1 minute)
