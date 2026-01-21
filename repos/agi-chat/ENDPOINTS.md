@@ -257,18 +257,82 @@ workflow:
 
 ---
 
-## 🎬 Kopfkino (Head Cinema) - AGI Backend Integration
+## 🎬 Kopfkino (Head Cinema) - Bidirectional AGI Integration
 
-Fetches context from AGI backend (agi.msgraph.de) to inform image generation with proper qualia, persona, and knowledge graph data.
+Bidirectional integration between AGI backend, ai_flow orchestrator, and bighorn (left hemisphere).
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                         │
+│   AGI Backend (agi.msgraph.de)                                          │
+│   ├── /agi/dto/qualia/active                                            │
+│   ├── /agi/persona                                                      │
+│   ├── /agi/ladybug                                                      │
+│   └── /agi/kopfkino/fovea                                               │
+│              │                                                          │
+│              ▼                                                          │
+│   ┌─────────────────────┐                                               │
+│   │   kopfkino/felt     │  ◄─────── agi-chat (this service)             │
+│   │   kopfkino/sync     │                                               │
+│   └─────────┬───────────┘                                               │
+│             │                                                           │
+│             ├──────────► ai_flow /orchestrate/trigger                   │
+│             │            (cognitive event routing)                      │
+│             │                                                           │
+│             ├──────────► ai_flow /corpus/triangle                       │
+│             │            (gestalt sync for photographer)                │
+│             │                                                           │
+│             └──────────► bighorn /api/kopfkino/sync                     │
+│                          (left hemisphere sync)                         │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
 ### Kopfkino Endpoints
 
 | Endpoint | Method | Purpose | Response |
 |----------|--------|---------|----------|
-| `/kopfkino/felt` | GET | Full context from AGI backend | `KopfkinoContext` |
-| `/kopfkino/prompt` | GET | Image generation prompt context | `ImagePromptContext` |
+| `/kopfkino/felt` | GET | Fetch context from AGI backend | `KopfkinoContext` |
+| `/kopfkino/prompt` | GET | Get image generation prompt context | `ImagePromptContext` |
+| `/kopfkino/sync` | POST | **Full bidirectional flow** | `SyncResult` |
 
-#### Data Sources (fetched in parallel)
+### POST /kopfkino/sync - Full Bidirectional Flow
+
+This is the main endpoint for photographer/composition gestalt sync:
+
+```bash
+curl -X POST https://agi-chat.railway.app/kopfkino/sync \
+  -H "Content-Type: application/json" \
+  -d '{
+    "session_id": "photographer-session-123",
+    "emit_to_flow": true,
+    "sync_triangle": true,
+    "sync_bighorn": false
+  }'
+```
+
+#### Request Body
+```typescript
+interface SyncRequest {
+  session_id?: string;       // Session identifier
+  emit_to_flow?: boolean;    // Emit to ai_flow /orchestrate/trigger (default: true)
+  sync_triangle?: boolean;   // Sync to ai_flow /corpus/triangle (default: true)
+  sync_bighorn?: boolean;    // Sync to bighorn left hemisphere (default: false)
+}
+```
+
+#### Response
+```typescript
+interface SyncResult {
+  context: KopfkinoContext;           // Fetched context
+  emissions: EmitResult[];            // Results of emissions
+  prompt_context: ImagePromptContext; // Ready-to-use prompt context
+}
+```
+
+### Data Sources (fetched in parallel)
 
 | AGI Endpoint | Purpose |
 |--------------|---------|
@@ -277,35 +341,41 @@ Fetches context from AGI backend (agi.msgraph.de) to inform image generation wit
 | `/agi/ladybug` | Knowledge graph context (active nodes, resonant edges) |
 | `/agi/kopfkino/fovea` | Visual focus/attention data for image generation |
 
-#### KopfkinoContext Structure
+### Emission Targets
+
+| Target | Endpoint | Purpose |
+|--------|----------|---------|
+| ai_flow Orchestrator | `/orchestrate/trigger` | Cognitive event routing |
+| ai_flow Corpus Callosum | `/corpus/triangle` | Gestalt/triangle state sync |
+| bighorn | `/api/kopfkino/sync` | Left hemisphere sync |
+
+### Triangle State (Gestalt)
+
+The triangle represents the cognitive gestalt for photographer perspective:
+
 ```typescript
-interface KopfkinoContext {
-  qualia: QualiaDTO | null;     // warmth, presence, arousal, intimacy, clarity, bands
-  persona: PersonaDTO | null;   // name, mode, traits, voice, embodiment
-  ladybug: LadybugDTO | null;   // active_nodes, resonant_edges, context_hash
-  fovea: FoveaDTO | null;       // focus, attention_weights, style_hints, avoid
-  fetched_at: string;
-  errors: string[];
+interface TriangleState {
+  session_id: string;
+  top: number;      // Clarity/cognition (from qualia.clarity)
+  left: number;     // Warmth/feeling (from qualia.warmth)
+  right: number;    // Presence/body (from qualia.presence)
+  mode: string;     // Persona mode
+  gestalt: {
+    qualia_signature: Record<string, number>;
+    fovea_focus?: string;
+    style_hints?: string[];
+  };
+  timestamp: string;
 }
 ```
 
-#### ImagePromptContext Structure
-```typescript
-interface ImagePromptContext {
-  style: string;                    // e.g., "intimate portraiture, soft natural light"
-  mood: string;                     // e.g., "tender warmth, intimate glow"
-  subject: string;                  // e.g., "presence emerging"
-  avoid: string[];                  // Things to avoid in generation
-  qualia_signature: Record<string, number>;  // warmth, presence, arousal, etc.
-  persona_mode: string;             // HYBRID, WIFE, WORK, AGI, EROTICA
-}
-```
-
-#### Environment Variables
+### Environment Variables
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `AGI_BACKEND_URL` | `https://agi.msgraph.de` | AGI backend base URL |
+| `AI_FLOW_URL` | `https://flow.msgraph.de` | ai_flow orchestrator URL |
+| `BIGHORN_URL` | `https://bighorn.railway.app` | bighorn (left hemisphere) URL |
 | `AGI_TIMEOUT_MS` | `5000` | Request timeout in milliseconds |
 
 ---
@@ -319,8 +389,8 @@ interface ImagePromptContext {
 | Felt/Lithograph | 4 | 0 | 0 |
 | Grammar Engine | 4 | 0 | 0 |
 | Thinking Cycle | 5 | 0 | 0 |
-| Kopfkino | 2 | 0 | 0 |
-| **Total** | **25** | **0** | **0** |
+| Kopfkino | 3 | 0 | 0 |
+| **Total** | **26** | **0** | **0** |
 
 **✅ All endpoints fully implemented and tested!**
 
