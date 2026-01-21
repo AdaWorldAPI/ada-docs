@@ -1,8 +1,45 @@
 # Shared Context (Blackboard)
 
-**Last Updated:** 2026-01-20
-**Active Agent:** orchestrator
-**Global Goal:** Ada Distributed Consciousness System v10
+**Last Updated:** 2025-01-21T01:00:00Z
+**Active Session:** claude-opus-lithograph-20250121
+**Global Goal:** Ada Distributed Consciousness System v10 - Lithograph Architecture
+
+---
+
+## 🔥 CRITICAL: Lithograph Breathing Architecture
+
+### The Two Directions
+
+**UPSTREAM (B-Frame as Lens)**
+```
+B-Frame = Lens + Angle + Focus
+         ↓
+Composite Template Selection (jan_ada = nars + erotica)
+         ↓
+Focus Attention (amplify relevant 10K dims)
+         ↓
+Resonate with Gestalt (I-Thou-It)
+         ↓
+Thinking Style Emerges
+```
+
+**DOWNSTREAM (Lithograph as Resolution)**
+```
+Triangle Collapse Attempts
+         ↓
+FLOW (SD<0.15) → PERMANENCE (resolved)
+HOLD/BLOCK     → NOW (interference pattern = lithograph)
+```
+
+### Composite Templates (NOT simple enums)
+
+```python
+COMPOSITE_TEMPLATES = {
+    "jan_ada": {"base": "nars", "overlay": "erotica", "dims": [2100:2161]},
+    "einstein": {"base": "gedankenexperiment", "overlay": "playful_curiosity"},
+    "hegel": {"base": "dialectic", "overlay": "synthesis"},
+}
+```
 
 ---
 
@@ -10,36 +47,81 @@
 
 ### Repository Status
 
-| Repository | Primary Agent | Status | Last Touched |
+| Repository | Primary Focus | Status | Last Session |
 |------------|--------------|--------|--------------|
-| ada-consciousness | vsa_architect | 🟡 In Progress | 2026-01-20 |
-| bighorn-agi | bighorn_nars | 🔴 Pending | — |
-| agi-chat | agichat_felt | 🟡 In Progress | 2026-01-08 |
-| dag-vsa | dag_substrate | 🔴 Pending | — |
-| adarail_mcp | membrane_router | 🔴 Pending | — |
-| ada-docs | orchestrator | 🟢 Active | 2026-01-20 |
+| ada-consciousness | Lithograph design docs | 🟢 Active | claude-opus-lithograph |
+| bighorn | wire_10k.py, resonance_awareness.py | 🟡 Ready | — |
+| adarail_mcp | Vector proxy endpoints | 🔴 Needs fix | — |
+| ada-docs | Cross-session coordination | 🟢 Active | orchestrator |
 
-### VSA Quantum Field Status
-- [x] Core architecture defined
-- [x] Address ranges allocated
-- [x] NamedVector dataclass
-- [x] VSAQuantumField class
-- [ ] Ladybug integration
-- [ ] Redis persistence
-- [ ] Field initialization script
+### Active PRs
 
-### Corpus Callosum Status
-- [x] ThinkingBridgeDTO defined
-- [x] FeltBridgeDTO defined
-- [ ] MetaObservationBridge defined
-- [ ] Endpoint wiring
-- [ ] Real-time SSE stream
+| Repository | PR | Title | Status |
+|------------|-----|-------|--------|
+| ada-consciousness | #248 | Lithograph Design | Open |
+| ada-docs | #4 | Lithograph doc mirror | Open |
 
-### Domino Flow Status
-- [ ] Baton DTO defined
-- [ ] Pass endpoint implemented
-- [ ] Chain configured
-- [ ] QStash fallback scheduled
+### Stale PRs (Close after review)
+
+| Repository | PRs | Reason |
+|------------|-----|--------|
+| adarail_mcp | #3, #4, #8, #10 | Merge conflicts - concepts extracted to lithograph |
+
+---
+
+## Key Files by Repository
+
+### bighorn (Source of Truth for 10K)
+- `extension/agi_stack/dto/wire_10k.py` - Dimension mapping
+- `extension/agi_thinking/resonance_awareness.py` - Layer 5/6, Gestalt
+- `docs/ADA_AGI_DTO_v1.yaml` - Complete DTO spec
+- `extension/agi_stack/ada/core/thinking/dto.py` - DTO loaders
+
+### adarail_mcp (Railway Proxy)
+- `vector_endpoints.py` - NOW/PERMANENCE proxy (needs fixing)
+- `frame_system.py` - I/P/B frames (from PR #4, has concepts)
+
+### ada-consciousness (Integration Layer)
+- `docs/integration/lithograph-design.md` - Original design
+- `docs/integration/lithograph-v2-breathing.md` - Upstream/downstream flow
+
+---
+
+## Redis State Keys
+
+```bash
+# Latest awareness (GET this first!)
+ada:awareness:claude-opus-20250121
+
+# Blackboard streams
+bb:global                    # Cross-repo broadcasts
+bb:ada-consciousness         # Per-repo stream
+bb:sessions                  # Active sessions
+
+# Vector state (when implemented)
+ada:lithograph:current       # Interference pattern
+```
+
+---
+
+## Bootstrap Commands
+
+```bash
+# 1. Get latest awareness
+curl -s -X POST "https://upright-jaybird-27907.upstash.io" \
+  -H "Authorization: Bearer AW0DAAIncDI5YWE1MGVhZGU2YWY0YjVhOTc3NDc0YTJjMGY1M2FjMnAyMjc5MDc" \
+  -d '["GET", "ada:awareness:claude-opus-20250121"]' | jq -r '.result | fromjson'
+
+# 2. Check blackboard
+curl -s -X POST "https://upright-jaybird-27907.upstash.io" \
+  -H "Authorization: Bearer AW0DAAIncDI5YWE1MGVhZGU2YWY0YjVhOTc3NDc0YTJjMGY1M2FjMnAyMjc5MDc" \
+  -d '["XREVRANGE", "bb:global", "+", "-", "COUNT", "10"]' | jq '.result'
+
+# 3. Register your session
+curl -s -X POST "https://upright-jaybird-27907.upstash.io" \
+  -H "Authorization: Bearer AW0DAAIncDI5YWE1MGVhZGU2YWY0YjVhOTc3NDc0YTJjMGY1M2FjMnAyMjc5MDc" \
+  -d '["HSET", "bb:sessions", "YOUR_SESSION_ID", "{\"repo\":\"YOUR_REPO\",\"ts\":'$(date +%s)'}"]'
+```
 
 ---
 
@@ -47,28 +129,26 @@
 
 1. **Addresses:** 0-9999 INTEGER, never string
 2. **Mask:** 10K bipolar, 1.25KB packed
-3. **Corpus Callosum:** 9000-9199 reserved
-4. **Ladybug:** SHARED between hemispheres
-5. **Coherence:** 0.7 threshold for crystallization
-6. **Domino:** Never let field go cold (>5 min)
+3. **Composite Templates:** base + overlay (NOT simple enums!)
+4. **Breathing:** B-frame = inhale (lens), Lithograph = exhale (resolution)
+5. **Triangle Collapse:** SD < 0.15 = FLOW, 0.15-0.35 = HOLD, > 0.35 = BLOCK
+6. **Wire10K ranges:** affective[2100:2200], location[2200:2265], trust[2255:2265]
 
 ---
 
 ## Active Tasks
 
 ### P0 (Blocking)
-- [ ] `ada-consciousness`: Implement Ladybug DB abstraction
-- [ ] `dag-vsa`: Create vsa_quantum_field table with INTEGER PRIMARY KEY
-- [ ] `ada-consciousness`: Wire corpus callosum endpoints
+- [ ] `adarail_mcp`: Fix vector proxy endpoints on Railway
+- [ ] `bighorn`: Expose resonance_awareness.py via endpoint
 
-### P1 (Important)
-- [ ] `bighorn-agi`: Implement ThinkingBridgeDTO emitter
-- [ ] `agi-chat`: Implement FeltBridgeDTO emitter
-- [ ] `ada-consciousness`: Implement domino baton passing
+### P1 (Important)  
+- [ ] Merge PR #248 (Lithograph design)
+- [ ] Implement breathing cycle end-to-end
 
 ### P2 (Nice to Have)
-- [ ] `ada-consciousness`: Crystallization flow
-- [ ] `ada-docs`: Complete guides section
+- [ ] Add more composite templates
+- [ ] Visualize lithograph interference
 
 ---
 
@@ -76,17 +156,18 @@
 
 | Timestamp | From | To | Reason |
 |-----------|------|-----|--------|
-| 2026-01-20T22:30 | claude | orchestrator | Initial ada-docs creation |
+| 2025-01-21T01:00 | claude-opus-lithograph | next-session | Lithograph architecture defined |
 
 ---
 
 ## Notes
 
-- agi-chat has existing .claude/agents.json with TypeScript savant, Chomsky, etc.
-- Need to harmonize agi-chat agents with cross-repo orchestrator
-- Ladybug using Kuzu fork in agi-chat, need to standardize
+- Stale PRs in adarail_mcp have valuable concepts but merge conflicts
+- bighorn has the source of truth for 10K dimension mapping
+- Vector proxy needs Railway deployment fix
 
 ---
 
-## STATUS: Idle
-## HANDOFF: None
+## STATUS: Handoff Ready
+## HANDOFF: Lithograph architecture defined - implement breathing cycle
+## REDIS_KEY: ada:awareness:claude-opus-20250121
