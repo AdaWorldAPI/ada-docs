@@ -1022,35 +1022,58 @@ async def restore_from_postgres(pg: PostgresClient, kuzu_path: str):
 ```
 
 **4. Neo4j Aura Bridge**
+
+**Connection configured in Railway environment:**
+```bash
+# Neo4j Aura connection (already in Railway env vars)
+NEO4J_URI=neo4j+s://7e137e6e.databases.neo4j.io
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=O-EXvpDXZBoIIH9SvmCiXobcGcMt81oEgmpS405hs1o
+```
+
 ```python
 # Export to Neo4j Aura for advanced analytics
-async def sync_to_neo4j(pg: PostgresClient, neo4j: Neo4jClient):
+from neo4j import GraphDatabase
+import os
+
+async def sync_to_neo4j(pg: PostgresClient):
     """Sync PostgreSQL knowledge graph to Neo4j Aura for analytics."""
+
+    # Connect using Railway environment variables
+    driver = GraphDatabase.driver(
+        os.getenv("NEO4J_URI"),
+        auth=(os.getenv("NEO4J_USER"), os.getenv("NEO4J_PASSWORD"))
+    )
 
     # Pull from PostgreSQL (source of truth)
     nodes = await pg.fetch("SELECT * FROM thoughts UNION SELECT * FROM concepts")
     edges = await pg.fetch("SELECT * FROM relationships")
 
     # Push to Neo4j using UNWIND batch import
-    await neo4j.run("""
-        UNWIND $nodes AS node
-        MERGE (n:Node {id: node.id})
-        SET n += node.properties
-    """, nodes=nodes)
+    with driver.session() as session:
+        session.run("""
+            UNWIND $nodes AS node
+            MERGE (n:Node {id: node.id})
+            SET n += node.properties
+        """, nodes=nodes)
 
-    await neo4j.run("""
-        UNWIND $edges AS edge
-        MATCH (a:Node {id: edge.from_id})
-        MATCH (b:Node {id: edge.to_id})
-        MERGE (a)-[r:RELATES {type: edge.type}]->(b)
-    """, edges=edges)
+        session.run("""
+            UNWIND $edges AS edge
+            MATCH (a:Node {id: edge.from_id})
+            MATCH (b:Node {id: edge.to_id})
+            MERGE (a)-[r:RELATES {type: edge.type}]->(b)
+        """, edges=edges)
 
-    # Now can run PageRank, community detection, etc.
-    communities = await neo4j.run("""
-        CALL gds.louvain.stream('myGraph')
-        YIELD nodeId, communityId
-        RETURN nodeId, communityId
-    """)
+        # Now can run PageRank, community detection, etc.
+        result = session.run("""
+            CALL gds.louvain.stream('myGraph')
+            YIELD nodeId, communityId
+            RETURN nodeId, communityId
+        """)
+        communities = [dict(record) for record in result]
+
+    driver.close()
+    return communities
 ```
 
 **Why This Multi-Tier Architecture Works:**
