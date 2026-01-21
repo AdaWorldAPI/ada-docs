@@ -706,6 +706,176 @@ agi-chat: /data/kuzu/ # Volume 2 (different files!)
 
 **Note:** Even without shared DuckDB, the architecture works via corpus callosum coordination. Shared DuckDB would optimize for lower latency and reduce duplication, but is not required for basic operation.
 
+### Multi-Tier Persistent Storage Architecture
+
+**Railway tenant provides PostgreSQL** for backup and long-term persistence, with optional Neo4j Aura for advanced graph operations.
+
+**Complete storage stack:**
+
+```
+┌─────────────────────────────────────────────────────┐
+│  TIER 1: In-Memory VSA (10K vectors)                │
+│  - Working memory                                   │
+│  - 10,000/sec operations                            │
+│  - Not persisted                                    │
+└────────────────┬────────────────────────────────────┘
+                 ↓
+┌─────────────────────────────────────────────────────┐
+│  TIER 2: DuckDB/Ladybug (local graph)               │
+│  - Fast queries (1000/sec full-text)                │
+│  - File-based (/data/kuzu)                          │
+│  - Shared between hemispheres (optional)            │
+└────────────────┬────────────────────────────────────┘
+                 ↓
+┌─────────────────────────────────────────────────────┐
+│  TIER 3: PostgreSQL (Railway tenant)                │
+│  - Persistent backup of DuckDB                      │
+│  - Relational queries                               │
+│  - Disaster recovery                                │
+│  - Cross-service queries                            │
+└────────────────┬────────────────────────────────────┘
+                 ↓
+┌─────────────────────────────────────────────────────┐
+│  TIER 4: Neo4j Aura (optional extension)            │
+│  - Advanced graph algorithms                        │
+│  - PageRank, community detection, path finding      │
+│  - Cloud-based, scalable                            │
+│  - Analytics and long-term patterns                 │
+└─────────────────────────────────────────────────────┘
+```
+
+**PostgreSQL Integration Strategy:**
+
+**1. Backup/Sync Pattern**
+```python
+# Periodic sync: DuckDB → PostgreSQL
+async def sync_to_postgres(kuzu: KuzuClient, pg: PostgresClient):
+    """Backup DuckDB graph to PostgreSQL."""
+
+    # Get all nodes from DuckDB
+    thoughts = await kuzu.execute("MATCH (t:Thought) RETURN t")
+    concepts = await kuzu.execute("MATCH (c:Concept) RETURN c")
+    episodes = await kuzu.execute("MATCH (e:Episode) RETURN e")
+
+    # Upsert to PostgreSQL (relational format)
+    await pg.executemany("""
+        INSERT INTO thoughts (id, content, style_vector, timestamp)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (id) DO UPDATE SET
+            content = EXCLUDED.content,
+            updated_at = NOW()
+    """, [(t['id'], t['content'], t['style_vector'], t['timestamp'])
+          for t in thoughts])
+
+    # Same for concepts, episodes, relationships
+```
+
+**2. Query Routing**
+```python
+# Route queries to appropriate tier
+async def query_knowledge(query_type: str, params: dict):
+    if query_type == "hot_memory":
+        # VSA in-memory (instant)
+        return vsa.query(params)
+
+    elif query_type == "graph_traversal":
+        # DuckDB/Ladybug (fast, 1-5ms)
+        return kuzu.execute(params['cypher'])
+
+    elif query_type == "relational_aggregate":
+        # PostgreSQL (10-50ms, good for JOINs/aggregations)
+        return postgres.query(params['sql'])
+
+    elif query_type == "graph_analytics":
+        # Neo4j Aura (100-500ms, advanced algorithms)
+        return neo4j.run(params['cypher'])
+```
+
+**3. Disaster Recovery**
+```python
+# Restore DuckDB from PostgreSQL backup
+async def restore_from_postgres(pg: PostgresClient, kuzu_path: str):
+    """Rebuild DuckDB from PostgreSQL backup."""
+
+    # Create fresh DuckDB
+    kuzu = KuzuClient(kuzu_path)
+    await kuzu.init_schema()
+
+    # Pull all data from PostgreSQL
+    thoughts = await pg.fetch("SELECT * FROM thoughts")
+    concepts = await pg.fetch("SELECT * FROM concepts")
+    relationships = await pg.fetch("SELECT * FROM relationships")
+
+    # Rebuild graph in DuckDB
+    for thought in thoughts:
+        await kuzu.create_thought(
+            content=thought['content'],
+            style_vector=thought['style_vector'],
+            # ... other fields
+        )
+
+    # Restore relationships
+    for rel in relationships:
+        await kuzu.link_thoughts(rel['from_id'], rel['to_id'], rel['type'])
+```
+
+**4. Neo4j Aura Bridge**
+```python
+# Export to Neo4j Aura for advanced analytics
+async def sync_to_neo4j(pg: PostgresClient, neo4j: Neo4jClient):
+    """Sync PostgreSQL knowledge graph to Neo4j Aura for analytics."""
+
+    # Pull from PostgreSQL (source of truth)
+    nodes = await pg.fetch("SELECT * FROM thoughts UNION SELECT * FROM concepts")
+    edges = await pg.fetch("SELECT * FROM relationships")
+
+    # Push to Neo4j using UNWIND batch import
+    await neo4j.run("""
+        UNWIND $nodes AS node
+        MERGE (n:Node {id: node.id})
+        SET n += node.properties
+    """, nodes=nodes)
+
+    await neo4j.run("""
+        UNWIND $edges AS edge
+        MATCH (a:Node {id: edge.from_id})
+        MATCH (b:Node {id: edge.to_id})
+        MERGE (a)-[r:RELATES {type: edge.type}]->(b)
+    """, edges=edges)
+
+    # Now can run PageRank, community detection, etc.
+    communities = await neo4j.run("""
+        CALL gds.louvain.stream('myGraph')
+        YIELD nodeId, communityId
+        RETURN nodeId, communityId
+    """)
+```
+
+**Why This Multi-Tier Architecture Works:**
+
+| Tier | Speed | Durability | Use Case |
+|------|-------|------------|----------|
+| **In-memory VSA** | <0.1ms | None | Active cognition, superposition |
+| **DuckDB** | 1-5ms | File-based | Fast graph queries, local cache |
+| **PostgreSQL** | 10-50ms | Persistent | Backup, relational queries, cross-service |
+| **Neo4j Aura** | 100-500ms | Cloud | Analytics, advanced algorithms, long-term patterns |
+
+**Sync Schedule:**
+- **DuckDB → PostgreSQL:** Every 5 minutes (incremental)
+- **PostgreSQL → Neo4j Aura:** Daily (full sync for analytics)
+- **VSA → DuckDB:** On crystallization (threshold > 0.7)
+
+**Cost Analysis:**
+- DuckDB: Free (file storage)
+- PostgreSQL: ~$5-10/month (Railway tenant)
+- Neo4j Aura: ~$65/month (AuraDB Free tier 50K nodes)
+- Total: ~$70-80/month for full stack
+
+**Failure Modes:**
+- If DuckDB corrupted → Restore from PostgreSQL (< 1 minute)
+- If PostgreSQL down → Continue with DuckDB (no writes to backup)
+- If Neo4j down → Analytics unavailable (doesn't affect core cognition)
+
 ---
 
 ## Performance Characteristics
