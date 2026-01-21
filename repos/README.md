@@ -6,6 +6,7 @@ This folder contains documentation and code changes organized by repository.
 
 | Repository | Service | URL | Status |
 |------------|---------|-----|--------|
+| [agi-chat](./agi-chat/) | agi-chat.railway.app | https://agi-chat.railway.app | ✅ Active |
 | [adarail_mcp](./adarail_mcp/) | mcp.exo.red | https://mcp.exo.red | ✅ Healthy |
 | [ai_flow](./ai_flow/) | flow.msgraph.de | https://flow.msgraph.de | ✅ Healthy |
 | [superpowers-mcp](./superpowers-mcp/) | superpowers-production | https://superpowers-production.up.railway.app | ✅ Fixed |
@@ -71,6 +72,10 @@ repos/
 ├── adarail_mcp/
 │   ├── README.md
 │   └── route_to_flow.py
+├── agi-chat/
+│   ├── README.md             ← Overview and quick start
+│   ├── API.md                ← Full API reference
+│   └── ENDPOINTS.md          ← Endpoint tables and integration guide
 ├── ai_flow/
 │   ├── README.md
 │   └── orchestrator_switchboard.py
