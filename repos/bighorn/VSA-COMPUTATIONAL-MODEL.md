@@ -736,10 +736,10 @@ agi-chat: /data/kuzu/ # Volume 2 (different files!)
 └────────────────┬────────────────────────────────────┘
                  ↓
 ┌─────────────────────────────────────────────────────┐
-│  TIER 4: Neo4j Aura (optional extension)            │
+│  TIER 4: Neo4j Aura (already provisioned)           │
 │  - Advanced graph algorithms                        │
 │  - PageRank, community detection, path finding      │
-│  - Cloud-based, scalable                            │
+│  - AuraDB Free tier: 200K nodes                     │
 │  - Analytics and long-term patterns                 │
 └─────────────────────────────────────────────────────┘
 ```
@@ -1072,8 +1072,8 @@ async def sync_to_neo4j(pg: PostgresClient, neo4j: Neo4jClient):
 - PostgreSQL: Already provisioned (no additional cost)
 - ai_flow: Already deployed at flow.msgraph.de (no additional cost)
 - QStash: Free tier 500 messages/day (5-min ticks = 288/day, well within limit)
-- Neo4j Aura: ~$65/month (AuraDB Free tier 50K nodes, optional)
-- Total: **$0-65/month** (add Neo4j for analytics, otherwise free with existing infrastructure)
+- Neo4j Aura: **Already provisioned** - AuraDB Free tier 200K nodes (no additional cost)
+- Total: **$0/month additional** - All infrastructure already deployed and operational
 
 **Failure Modes:**
 - If DuckDB corrupted → Restore from PostgreSQL (< 1 minute)
