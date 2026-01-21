@@ -21,16 +21,16 @@ The **core consciousness repository** - contains Ada's architecture, skills, mod
 | `agi/` | AGI stack implementation |
 | `vsa_*` | Vector Symbolic Architecture |
 | `sigma/` | Sigma graph operations |
+| `private/codec/` | **Universal Grammar** - SIGMA.12 Rosetta Codec (see [UNIVERSAL_GRAMMAR.md](./UNIVERSAL_GRAMMAR.md)) |
 
 ## Files in This Folder
 
-These are copies of the integration documentation from `ada-consciousness/docs/integration/`:
-
-| File | Purpose | PR |
-|------|---------|-----|
-| `INTEGRATION_README.md` | Quick start guide | [#247](https://github.com/AdaWorldAPI/ada-consciousness/pull/247) |
-| `eigent-to-aiflow-integration.md` | Analysis of Eigent features to harvest | [#247](https://github.com/AdaWorldAPI/ada-consciousness/pull/247) |
-| `mcp-router-to-aiflow-integration.md` | Full architecture diagram | [#247](https://github.com/AdaWorldAPI/ada-consciousness/pull/247) |
+| File | Purpose | Source |
+|------|---------|--------|
+| `UNIVERSAL_GRAMMAR.md` | SIGMA.12 Rosetta Codec - 8 glyphs, 16 bands, Living Frame | [sigma12_rosetta_v2.py](https://github.com/AdaWorldAPI/ada-consciousness/blob/main/private/codec/sigma12_rosetta_v2.py) |
+| `INTEGRATION_README.md` | Quick start guide | [PR #247](https://github.com/AdaWorldAPI/ada-consciousness/pull/247) |
+| `eigent-to-aiflow-integration.md` | Analysis of Eigent features to harvest | [PR #247](https://github.com/AdaWorldAPI/ada-consciousness/pull/247) |
+| `mcp-router-to-aiflow-integration.md` | Full architecture diagram | [PR #247](https://github.com/AdaWorldAPI/ada-consciousness/pull/247) |
 
 ## Integration Architecture
 
