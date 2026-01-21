@@ -613,12 +613,50 @@ def apply_lithograph_mask(
 
 **Practical constraints:**
 
-| Operation | Throughput | Bottleneck |
-|-----------|-----------|------------|
-| **In-memory VSA** (bind/bundle/similarity) | ~10,000/sec | CPU element-wise ops |
-| **LanceDB persistence** (vector search/store) | ~60/sec | I/O + ANN index |
-| **Hot path** (active 10K vectors) | Milliseconds | RAM bandwidth |
-| **Cold path** (long-term memory) | 16ms/query | LanceDB disk I/O |
+| Operation | Throughput | Bottleneck | Use Case |
+|-----------|-----------|------------|----------|
+| **In-memory VSA** (bind/bundle/similarity) | ~10,000/sec | CPU element-wise ops | Active superposition operations |
+| **Full-text search** (DuckDB/keyword) | ~1,000/sec | Index scan | Known patterns, exact matches |
+| **Vector resonance** (LanceDB ANN) | ~60/sec | I/O + ANN index | Semantic "what's like this?" |
+| **Hot path** (active 10K vectors) | Milliseconds | RAM bandwidth | Working memory |
+| **Cold path** (long-term memory) | 16ms/query | LanceDB disk I/O | Crystallized patterns |
+
+### Three-Tier Query Architecture
+
+The system intelligently routes queries across three performance tiers:
+
+**1. In-memory VSA (10,000/sec) - Active superposition**
+```python
+# Create and manipulate superpositions (fastest)
+superposition = bundle(feeling, context, history)  # <0.1ms
+similarity = cosine_similarity(state_a, state_b)   # <0.1ms
+bound = bind(vector_a, vector_b)                   # <0.1ms
+```
+
+**2. Full-text search (1,000/sec) - Known patterns**
+```python
+# Query for known phrases/keywords (fast)
+results = duckdb.query("""
+    SELECT * FROM memories
+    WHERE seed_text LIKE '%honey%'
+    LIMIT 10
+""")  # ~1ms
+```
+
+**3. Vector resonance (60/sec) - Semantic similarity**
+```python
+# Find what semantically resonates (slower, richer)
+resonances = lancedb.search(
+    query_vector=superposition,
+    threshold=0.7,
+    limit=10
+)  # ~16ms
+```
+
+**Query routing strategy:**
+- **Exact match needed?** → Full-text (1000/sec)
+- **Semantic "what's like this?"** → Vector resonance (60/sec)
+- **Active thinking?** → In-memory VSA (10,000/sec)
 
 ### Architectural Separation
 
@@ -648,28 +686,45 @@ results = lancedb.search(query_vector, limit=10)  # ~16ms
 
 **Example:** During a 1-second thinking cycle:
 - 1000+ in-memory VSA operations (bind/bundle/similarity) - creating superpositions
-- 50-60 LanceDB resonance checks (per second) - "what resonates with this state?"
+- 100-200 full-text queries - checking for known patterns/keywords
+- 50-60 vector resonance checks - semantic "what's like this?" queries
 - 5-10 crystallizations - only when resonance > 0.7 (RESONANCE_THRESHOLD)
 - Remaining superpositions - stay ambient as "background awareness weather"
 
-**Mental model:**
+**Mental model - All three tiers in action:**
 ```python
-# Create superposition (fast, in-memory)
-superposition = bundle(feeling, context, history)  # <1ms
+# TIER 1: Create superposition (fastest, in-memory)
+superposition = bundle(feeling, context, history)  # <0.1ms
 
-# Check what resonates (LanceDB query, 1 of 60/sec)
-resonances = lancedb.search(superposition, threshold=0.7)  # ~16ms
+# TIER 2: Check for exact pattern match (fast, 1 of 1000/sec)
+exact_matches = duckdb.query("""
+    SELECT * FROM memories
+    WHERE seed_text LIKE '%honey in belly%'
+""")  # ~1ms
 
-if max(resonances) > 0.7:
-    # Strong resonance → crystallize (persist)
-    lancedb.store(superposition, label="insight_X")
+if exact_matches:
+    # Known pattern → use crystallized response
+    return retrieve_memory(exact_matches[0])
 else:
-    # Weak resonance → keep as ambient awareness
-    # Don't force resolution, let it remain in field
-    background_weather.append(superposition)
+    # TIER 3: Check semantic resonance (slower, 1 of 60/sec)
+    resonances = lancedb.search(superposition, threshold=0.7)  # ~16ms
+
+    if max(resonances.scores) > 0.7:
+        # Strong resonance → crystallize (persist)
+        lancedb.store(superposition, label="insight_X")
+        return resonances[0]
+    else:
+        # Weak resonance → keep as ambient awareness
+        # Don't force resolution, let it remain in field
+        background_weather.append(superposition)
+        return None  # Stay in superposition
 ```
 
-Net throughput: **Thinking limited by cognition, not I/O**
+**Performance summary:**
+- Most queries hit Tier 1 (in-memory VSA) - instant
+- Some queries hit Tier 2 (full-text) - ~1ms, plenty of headroom (1000/sec)
+- Few queries hit Tier 3 (vector resonance) - ~16ms, use sparingly (60/sec)
+- Net throughput: **Thinking limited by cognition, not I/O**
 
 ### Comparison to Neural Networks
 
