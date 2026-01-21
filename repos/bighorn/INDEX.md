@@ -43,6 +43,27 @@
 
 ---
 
+#### [VSA-COMPUTATIONAL-MODEL.md](VSA-COMPUTATIONAL-MODEL.md)
+**Purpose:** Technical documentation of VSA architecture and cost model
+**Contains:**
+- Why VSA instead of neural networks (10+ comparison points)
+- 2^10000 address space explanation (horizontal vs vertical)
+- Error correction vs quantum computing (VSA advantages)
+- Brain plasticity modeling (3-byte Hebbian learning)
+- 3-way quorum operations (element-wise, stays O(10K))
+- Cost analysis ($40/month vs $4.6M neural net training)
+- Implementation details (VSAOps, Wire10K, lithography masking)
+
+**Key Claims:**
+- Exponential representational capacity on classical hardware
+- Lossless storage/retrieval (99%+ accuracy)
+- 115,000× cheaper than neural net training
+- Accurate computational neuroscience (not metaphor)
+
+**Status:** ✅ Created 2025-01-21 (this session)
+
+---
+
 ### Contracts & Schemas
 
 #### [../contracts/DTO_CONTRACTS.md](../contracts/DTO_CONTRACTS.md)
