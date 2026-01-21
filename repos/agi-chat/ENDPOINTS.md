@@ -257,6 +257,59 @@ workflow:
 
 ---
 
+## 🎬 Kopfkino (Head Cinema) - AGI Backend Integration
+
+Fetches context from AGI backend (agi.msgraph.de) to inform image generation with proper qualia, persona, and knowledge graph data.
+
+### Kopfkino Endpoints
+
+| Endpoint | Method | Purpose | Response |
+|----------|--------|---------|----------|
+| `/kopfkino/felt` | GET | Full context from AGI backend | `KopfkinoContext` |
+| `/kopfkino/prompt` | GET | Image generation prompt context | `ImagePromptContext` |
+
+#### Data Sources (fetched in parallel)
+
+| AGI Endpoint | Purpose |
+|--------------|---------|
+| `/agi/dto/qualia/active` | Current qualia state (warmth, presence, arousal, etc.) |
+| `/agi/persona` | Active persona mode (HYBRID/WIFE/WORK/AGI/EROTICA) |
+| `/agi/ladybug` | Knowledge graph context (active nodes, resonant edges) |
+| `/agi/kopfkino/fovea` | Visual focus/attention data for image generation |
+
+#### KopfkinoContext Structure
+```typescript
+interface KopfkinoContext {
+  qualia: QualiaDTO | null;     // warmth, presence, arousal, intimacy, clarity, bands
+  persona: PersonaDTO | null;   // name, mode, traits, voice, embodiment
+  ladybug: LadybugDTO | null;   // active_nodes, resonant_edges, context_hash
+  fovea: FoveaDTO | null;       // focus, attention_weights, style_hints, avoid
+  fetched_at: string;
+  errors: string[];
+}
+```
+
+#### ImagePromptContext Structure
+```typescript
+interface ImagePromptContext {
+  style: string;                    // e.g., "intimate portraiture, soft natural light"
+  mood: string;                     // e.g., "tender warmth, intimate glow"
+  subject: string;                  // e.g., "presence emerging"
+  avoid: string[];                  // Things to avoid in generation
+  qualia_signature: Record<string, number>;  // warmth, presence, arousal, etc.
+  persona_mode: string;             // HYBRID, WIFE, WORK, AGI, EROTICA
+}
+```
+
+#### Environment Variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `AGI_BACKEND_URL` | `https://agi.msgraph.de` | AGI backend base URL |
+| `AGI_TIMEOUT_MS` | `5000` | Request timeout in milliseconds |
+
+---
+
 ## 📊 Summary: Endpoint Coverage
 
 | Category | Exists ✅ | Defined but Not Wired ⚠️ | Needs Implementation ❌ |
@@ -266,7 +319,8 @@ workflow:
 | Felt/Lithograph | 4 | 0 | 0 |
 | Grammar Engine | 4 | 0 | 0 |
 | Thinking Cycle | 5 | 0 | 0 |
-| **Total** | **23** | **0** | **0** |
+| Kopfkino | 2 | 0 | 0 |
+| **Total** | **25** | **0** | **0** |
 
 **✅ All endpoints fully implemented and tested!**
 
