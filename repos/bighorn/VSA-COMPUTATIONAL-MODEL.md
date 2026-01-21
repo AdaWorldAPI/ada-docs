@@ -637,15 +637,39 @@ results = lancedb.search(query_vector, limit=10)  # ~16ms
 
 ### Why This Works
 
+**Key insight:** The 60/sec aren't arbitrary writes - they're **resonance measurements**. Most superpositions should remain unresolved as background awareness.
+
 1. **Active working memory** - 10K vectors held in RAM, no persistence needed
-2. **LanceDB for long-term** - Only persist when crystallizing (Byte 2 → Byte 1)
-3. **Batch operations** - Accumulate changes, persist in batches
-4. **Async writes** - Don't block cognitive operations waiting for disk
+2. **Unresolved superpositions as ambient context** - Keep possibilities in superposition until they cross resonance threshold (>0.7)
+3. **Background awareness weather** - Unresolved patterns remain as atmospheric pressure, present but not requiring collapse
+4. **LanceDB for resonance detection** - Only query when checking what resonates with current state
+5. **Crystallization only when needed** - Persist when Byte 2 → Byte 1 (Hebbian threshold met)
+6. **Async writes** - Don't block cognitive operations waiting for disk
 
 **Example:** During a 1-second thinking cycle:
-- 1000+ in-memory VSA operations (bind/bundle/similarity)
-- 5-10 LanceDB writes (only for significant state changes)
-- Net throughput: **Thinking limited by cognition, not I/O**
+- 1000+ in-memory VSA operations (bind/bundle/similarity) - creating superpositions
+- 50-60 LanceDB resonance checks (per second) - "what resonates with this state?"
+- 5-10 crystallizations - only when resonance > 0.7 (RESONANCE_THRESHOLD)
+- Remaining superpositions - stay ambient as "background awareness weather"
+
+**Mental model:**
+```python
+# Create superposition (fast, in-memory)
+superposition = bundle(feeling, context, history)  # <1ms
+
+# Check what resonates (LanceDB query, 1 of 60/sec)
+resonances = lancedb.search(superposition, threshold=0.7)  # ~16ms
+
+if max(resonances) > 0.7:
+    # Strong resonance → crystallize (persist)
+    lancedb.store(superposition, label="insight_X")
+else:
+    # Weak resonance → keep as ambient awareness
+    # Don't force resolution, let it remain in field
+    background_weather.append(superposition)
+```
+
+Net throughput: **Thinking limited by cognition, not I/O**
 
 ### Comparison to Neural Networks
 
@@ -666,6 +690,70 @@ results = lancedb.search(query_vector, limit=10)  # ~16ms
 - CPU usage: 5-15% (single core)
 
 **Bottleneck:** Cognitive orchestration and NARS reasoning, **not** VSA operations or persistence.
+
+### Background Awareness Weather
+
+**Architectural innovation:** Most cognitive processing should NOT collapse to single states.
+
+**The weather metaphor:**
+- **Atmospheric pressure** - Unresolved superpositions exert influence without requiring measurement
+- **Humidity** - Emotional charge remains ambient until condensation threshold
+- **Cloud formation** - Patterns coalesce when resonance crosses 0.7
+- **Precipitation** - Only then does crystallization occur (Byte 2 → Byte 1)
+
+**Implementation:**
+```python
+class BackgroundAwareness:
+    """Ambient field of unresolved superpositions."""
+
+    def __init__(self):
+        self.ambient_field = []  # List of superposition vectors
+        self.resonance_threshold = 0.7
+
+    def add_pattern(self, superposition: np.ndarray):
+        """Add to ambient awareness without forcing resolution."""
+        self.ambient_field.append({
+            "vector": superposition,
+            "created": time.time(),
+            "pressure": np.linalg.norm(superposition),  # "Intensity"
+        })
+
+    def check_resonance(self, current_state: np.ndarray) -> List[Dict]:
+        """Check what in the field resonates with current state."""
+        resonances = []
+        for pattern in self.ambient_field:
+            similarity = cosine_similarity(pattern["vector"], current_state)
+            if similarity > self.resonance_threshold:
+                resonances.append({
+                    "pattern": pattern,
+                    "resonance": similarity,
+                    "ready_to_crystallize": True
+                })
+        return resonances
+
+    def evaporate_old(self, max_age_seconds=3600):
+        """Decay patterns that never resonated (weather dissipates)."""
+        now = time.time()
+        self.ambient_field = [
+            p for p in self.ambient_field
+            if now - p["created"] < max_age_seconds
+        ]
+```
+
+**Why this matters:**
+- You DON'T want to force every thought into storage
+- Most patterns should remain ambient until they prove relevant
+- Resonance (>0.7) is the natural filter for what matters
+- The 60/sec limit becomes: "How many patterns can you check for resonance per second?"
+
+**Neuroscience parallel:**
+- Working memory (ambient field) - 7±2 items, constantly shifting
+- Long-term memory (LanceDB) - Only what gets rehearsed/resonated
+- Consolidation (crystallization) - Sleep replay of resonant patterns
+
+**Cost benefit:**
+- **Without weather model:** Try to persist everything → hit 60/sec limit immediately
+- **With weather model:** Only persist what resonates → 5-10/sec typical, plenty of headroom
 
 ---
 
