@@ -11,6 +11,8 @@ This folder contains documentation and code changes organized by repository.
 | [ai_flow](./ai_flow/) | flow.msgraph.de | https://flow.msgraph.de | ✅ Healthy |
 | [superpowers-mcp](./superpowers-mcp/) | superpowers-production | https://superpowers-production.up.railway.app | ✅ Fixed |
 | [ada-consciousness](./ada-consciousness/) | (GitHub only) | - | ✅ Active |
+| [dragonfly-vsa](./dragonfly-vsa/) | (Railway pending) | - | ✅ Active |
+| [bighorn](./bighorn/) | bighorn-agi | - | ✅ Active |
 
 ## Recent Changes (2025-01-21)
 
@@ -38,25 +40,32 @@ This folder contains documentation and code changes organized by repository.
                         ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │              mcp.exo.red (adarail_mcp)                          │
-│              + route_to_flow.py (NEW)                            │
+│              + route_to_flow.py                                  │
 │              + temporal/ deinterlacing                           │
 └───────────────────────┬─────────────────────────────────────────┘
                         │
                         ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │              flow.msgraph.de (ai_flow)                          │
-│              + orchestrator_switchboard.py (NEW)                 │
+│              + orchestrator_switchboard.py                       │
 │              + Eigent-style workers                              │
 │              + Blackboard awareness                              │
 └───────────────────────┬─────────────────────────────────────────┘
                         │
-        ┌───────────────┼───────────────┐
-        │               │               │
-        ▼               ▼               ▼
-┌───────────────┐ ┌───────────────┐ ┌───────────────┐
-│ superpowers   │ │    Redis      │ │   bighorn     │
-│ (skills)      │ │   (Upstash)   │ │   (AGI)       │
-└───────────────┘ └───────────────┘ └───────────────┘
+        ┌───────────────┼───────────────┬───────────────┐
+        │               │               │               │
+        ▼               ▼               ▼               ▼
+┌───────────────┐ ┌───────────────┐ ┌───────────────┐ ┌───────────────┐
+│ superpowers   │ │    Redis      │ │   bighorn     │ │ dragonfly-vsa │
+│ (skills)      │ │   (Upstash)   │ │   (AGI)       │ │ (1024D atoms) │
+└───────────────┘ └───────────────┘ └───────────────┘ └───────────────┘
+                                           │                 │
+                                           └────────┬────────┘
+                                                    │
+                                           ┌────────▼────────┐
+                                           │  ada-consciousness│
+                                           │  (sigma12_rosetta)│
+                                           └─────────────────┘
 ```
 
 ## Folder Structure
@@ -79,6 +88,16 @@ repos/
 ├── ai_flow/
 │   ├── README.md
 │   └── orchestrator_switchboard.py
+├── bighorn/
+│   ├── INDEX.md
+│   ├── INTEGRATION-REQUIREMENTS.md
+│   ├── NARS-WIRESHARK-INTEGRATION.md
+│   └── VSA-COMPUTATIONAL-MODEL.md
+├── dragonfly-vsa/            ← NEW: 1024D qualia atoms
+│   ├── README.md             ← Architecture overview
+│   ├── SIGNAL_SEPARATION.md  ← Core insight: 1024D as source of truth
+│   ├── RESONANCE_THINKING_ATOMS.md  ← I-THOU-IT triangle
+│   └── INTEGRATION_PLAN.md   ← Sigma12 × 1024D integration
 └── superpowers-mcp/
     └── README.md
 ```
