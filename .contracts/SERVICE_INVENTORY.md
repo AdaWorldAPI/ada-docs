@@ -138,3 +138,29 @@ ada-dragonfly: http://ada-dragonfly.railway.internal:8000
 ## Version
 
 Last updated: 2026-01-25
+
+---
+
+## DAG-VSA Triple Redundancy (41 endpoints)
+
+| Node | URL | Endpoints | State |
+|------|-----|-----------|-------|
+| dag-vsa01 | dag-vsa01.msgraph.de | 8 | healthy |
+| dag-vsa02 | dag-vsa02.msgraph.de | 19 | degraded |
+| dag-vsa03 | dag-vsa03.msgraph.de | 14 | degraded |
+
+**Note:** dag-vsa02/03 have 0 vectors stored and need hydration.
+
+## Updated Total: 295 endpoints
+
+| Service | Endpoints |
+|---------|-----------|
+| bighorn | 92 |
+| consciousness | 77 |
+| ai_flow | 53 |
+| vsa-flow | 21 |
+| ada-dragonfly | 11 |
+| dag-vsa01 | 8 |
+| dag-vsa02 | 19 |
+| dag-vsa03 | 14 |
+| **TOTAL** | **295** |
