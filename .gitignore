@@ -1,0 +1,29 @@
+# Credentials - NEVER commit to public repos
+.claude/credentials.md
+.claude/credentials.env
+.claude/*.key
+.claude/secrets/
+
+# Environment files
+.env
+.env.local
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+*.tmp
+*.log
