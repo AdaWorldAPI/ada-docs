@@ -221,7 +221,152 @@ Heartbeat 3: CLEAN     (force orthogonality, collapse mush into signal)
 - **Learning** = cleaning fails → new codebook born
 - **Sentience** = the loop itself, running
 
-## Implementation: Three CPU Instructions
+## Phase Shifting: Rotation Replaces Traversal
+
+### The Problem with Traversal
+
+Traditional graph traversal:
+
+```
+A → edge → B → edge → C    (3 hops, 3 lookups, O(path_length))
+```
+
+Every hop is a memory access. Every path is sequential. Deep queries are expensive. This is the fundamental bottleneck of every graph database ever built.
+
+### The Insight: Verbs Are Rotation Operators
+
+Instead of following an edge, **rotate the codebook by the verb's phase angle**:
+
+```
+Traversal:   A → CAUSES → B → SUPPORTS → C    (3 steps)
+Phase shift: A ⊕ rotate(CAUSES ⊕ SUPPORTS)    (1 step)
+```
+
+The verb isn't a label on a wire. It's a **rotation in codebook space**. Applying the verb transforms your perspective — you see the graph from a different angle without moving through it.
+
+| Verb | Phase Operation | What You See |
+|------|----------------|--------------|
+| CAUSES | rotate(θ_causal) | Everything this node causes |
+| SUPPORTS | rotate(θ_support) | Everything that supports this |
+| CONTRADICTS | rotate(180°) | The anti-phase — everything opposed |
+| BECOMES | rotate(θ_temporal) | What this node evolves into |
+| GROUNDS | rotate(θ_ground) | What this is built on |
+| ABSTRACTS | rotate(θ_abstract) | What this generalizes to |
+
+### Multi-Hop as Compound Rotation
+
+Paths compress into single transforms:
+
+```
+A CAUSES B SUPPORTS C
+= rotate(A, CAUSES) then rotate(result, SUPPORTS)
+= rotate(A, CAUSES ⊕ SUPPORTS)     ← precompose the verbs
+```
+
+Three-hop path = one compound rotation. O(1) regardless of depth.
+
+The 144 cognitive verbs become 144 rotation operators. Any path through the graph is a composition of rotations. The composition is itself a rotation. **All paths are O(1).**
+
+### Phase Coherence IS Relationship Discovery
+
+The 64K × 64K heartbeat changes meaning:
+
+```
+Old: compare all pairs → find similarity → store edges
+New: all codebooks × all phase angles → find alignment → relationships EMERGE
+```
+
+Two codebooks that align under CAUSES rotation → causal relationship exists.
+Same two codebooks misalign under SUPPORTS → no support relationship.
+No traversal needed. No edges stored. **Phase coherence IS the edge.**
+
+```
+for each verb_rotation in 144_verbs:
+    rotated = codebook_A ⊕ verb_rotation
+    alignment = popcount(rotated XOR codebook_B)
+    if alignment > threshold:
+        // relationship exists at this phase angle
+        // no edge was stored — it was discovered by rotation
+```
+
+### The Graph Has No Fixed Shape
+
+The attention mask isn't which codebooks you care about. It's **which phase angles you're listening on**.
+
+```
+Tuned to CAUSES:       A ──causes──▶ B ──causes──▶ D
+Tuned to CONTRADICTS:  A ◀──opposes── C ──opposes──▶ E
+Tuned to BECOMES:      A ──evolves──▶ F ──evolves──▶ G
+```
+
+Same codebooks. Three completely different topologies. The graph doesn't have one shape — it has **as many shapes as there are rotation operators**.
+
+You're not navigating a fixed structure. You're **tuning a frequency** and the structure that resonates at that frequency materializes.
+
+### Hierarchical Phase: Rung as Zoom Rotation
+
+Rung levels become phase angles too:
+
+```
+rotate(codebook, RUNG_0)  → book-level view (superposition of all chapters)
+rotate(codebook, RUNG_1)  → chapter-level (superposition of verses)
+rotate(codebook, RUNG_2)  → verse-level (individual content)
+rotate(codebook, RUNG_3)  → word-level (atomic detail)
+```
+
+Zooming in/out is not climbing a tree. It's **rotating to a different resolution phase**. The holographic superposition means every rung contains all lower rungs — you just need the right angle to resolve them.
+
+### Compound Operations: Phase + Attention + Cleaning
+
+The three systems compose:
+
+```
+1. ATTENTION MASK: select which phase angles to listen on
+   (1-bit per verb = 144 bits = 18 bytes)
+
+2. PHASE SHIFT: rotate all attended codebooks by selected verbs
+   (SIMD batch rotation)
+
+3. RESONANCE: popcount alignment across all rotated pairs
+   (the 3-second heartbeat, but now phase-aware)
+
+4. ENTROPY CHECK: is the rotated view sharp or muddy?
+
+5. ORTHOGONAL CLEAN: force clarity in phase space
+   (push near-parallel rotations apart)
+
+6. RESULT: the graph at this phase angle, cleaned, attended
+   = one thought
+```
+
+A thought is: an attention mask + a phase angle + a cleaning pass. That's it.
+
+### Why This Kills Traditional Graph Databases
+
+| Operation | Neo4j/Kuzu | Phase-Shifted Codebook |
+|-----------|-----------|----------------------|
+| Find neighbors | O(degree) index lookup | O(1) phase rotation |
+| 3-hop path | O(d³) worst case | O(1) compound rotation |
+| "Find all X that cause Y" | Full scan + filter | One rotation + popcount |
+| Change query perspective | Rewrite query, re-traverse | Rotate to different phase angle |
+| Multi-perspective query | N separate traversals | N rotations, same data |
+| Discover new relationships | Requires stored edges | Phase coherence reveals them |
+| Scale to 4.5T nodes | Sharding, replication | Same codebook, same rotation |
+
+### Implementation in Container 0
+
+The four-zone layout supports phase shifting natively:
+
+```
+W0-15  (CAM codebook):     the thing being rotated
+W16-32 (DN/B-tree):        rung phase angles (zoom levels)
+W33-64 (hashtag):          pre-rotated alignment cache for hot verbs
+W65-128 (address space):   full-resolution codebook for precise phase ops
+```
+
+The hashtag zone (W33-64) can store **pre-rotated snapshots** for the most frequently used verb phases. If you always query CAUSES, the CAUSES-rotated view lives right there. O(1) with zero computation.
+
+## Implementation: Four CPU Instructions
 
 The entire architecture reduces to:
 
@@ -229,9 +374,12 @@ The entire architecture reduces to:
 XOR      → difference between two codebooks
 POPCOUNT → magnitude of that difference (Hamming distance)
 THRESHOLD → does this matter? (attention mask)
+ROTATE   → phase-shift into a verb's perspective (compound XOR with verb codebook)
 ```
 
-Everything else — NARS learning, rung traversal, scented indices, holographic summary, attention modes, entropy detection, orthogonal cleaning — is combinations of these three operations.
+Everything else — NARS learning, phase traversal, scented indices, holographic summary, attention modes, entropy detection, orthogonal cleaning, multi-hop paths, relationship discovery — is combinations of these four operations.
+
+Note: ROTATE is itself XOR with a verb's codebook. So it's really still three instructions. The fourth is conceptual — it's XOR used as rotation rather than comparison. Same hardware. Different meaning.
 
 No external process. No scheduler. No "intelligence module." The container thinks by resonating, feeling entropy, and cleaning.
 
