@@ -6,11 +6,12 @@ RedisGraph reimagined in Hamming 3D. Neo4j at 6,000× speed.
 
 ## Documents
 
-| Doc | Purpose |
-|-----|---------|
-| [INTEGRATION_MAP_v3.md](INTEGRATION_MAP_v3.md) | The definitive architecture document. Container geometry, SPOQ viewpoints, blackboard threading, crate responsibilities, execution phases. Handoff doc for Claude Code sessions. |
-| [SCHEMA_SPECIFICATION.md](SCHEMA_SPECIFICATION.md) | Domain-blind schema. Six decisions that prevent Holograph from becoming a chess engine. DomainAdapter trait, Fingerprinter interface, cross-domain transfer protocol. **Read this before implementing any Container layout.** |
-| [CHESS_BRAIN_PLASTICITY.md](CHESS_BRAIN_PLASTICITY.md) | Validation harness. 8×8 board as XOR network. Brain plasticity experiment: zero-knowledge self-play → emergent concepts → measurable Elo. Cross-domain transfer experiment. |
+| Doc | Purpose | Read When |
+|-----|---------|-----------|
+| [SCHEMA_SPECIFICATION.md](SCHEMA_SPECIFICATION.md) | Domain-blind schema. Six decisions preventing domain lock-in. DomainAdapter trait. | **Read first.** Always. |
+| [INTEGRATION_MAP_v3.md](INTEGRATION_MAP_v3.md) | Substrate architecture. Container geometry, SPOQ viewpoints, blackboard threading, crate map, execution phases. | Building the substrate. |
+| [CHESS_BRAIN_PLASTICITY.md](CHESS_BRAIN_PLASTICITY.md) | First adapter. 8×8 board as XOR network. Zero-knowledge self-play → concepts → Elo. Cross-domain transfer. | Implementing ChessAdapter. |
+| [POLITICAL_INTELLIGENCE.md](POLITICAL_INTELLIGENCE.md) | Second adapter. LLM-in-the-loop fingerprinting, dynamic agent spawning, live knowledge graph of Trump's political network, Brier score prediction scoring. The real demo. | Implementing PoliticalAdapter. |
 
 ## The Thesis
 
@@ -41,9 +42,13 @@ cargo build --release → holograph (one binary, multiple adapters)
 
 ## Status (2026-02-18)
 
-- Architecture: defined (this doc)
+- Architecture: defined (INTEGRATION_MAP_v3, SCHEMA_SPECIFICATION)
+- Domain-blind schema: specified (6 decisions, DomainAdapter trait)
 - Substrate (ladybug-rs): exists, needs gap wiring + NARS k fix
 - Cypher compiler (neo4j-rs): needs RISC refactor (delete 3,403 LOC)
 - One binary workspace: not yet created
-- Chess validation: not yet started
-- Brain plasticity experiment: designed, not implemented
+- ChessAdapter: designed, not implemented
+- PoliticalAdapter: designed, not implemented
+- Brain plasticity experiment: designed, not running
+- Political intelligence demo: designed, not running
+- Cross-domain transfer: designed, depends on both adapters running
