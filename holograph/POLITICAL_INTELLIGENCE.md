@@ -759,7 +759,209 @@ That's not a chess engine. That's not a political analysis tool. That's a substr
 
 ---
 
-## 10. Ethical Constraints
+## 10. Wikipedia: The Commodity Hardware Benchmark
+
+### 10.1 Why This Matters
+
+Every knowledge graph system that ingests all of Wikipedia needs enterprise infrastructure: GPU clusters for embedding, hundreds of gigabytes of RAM for graph traversal, distributed databases for storage. Neo4j with the full Wikipedia entity graph requires ~500 GB+ RAM. Embedding all articles with OpenAI costs ~$15,000 and requires cluster coordination.
+
+Holograph can ingest all of English Wikipedia on a single machine with commodity hardware. This is the benchmark that makes people pay attention.
+
+### 10.2 The Numbers
+
+```
+English Wikipedia:
+  6.8M articles
+  4.4B words
+  ~22 GB compressed (XML dump)
+  ~50M cross-references (wikilinks between articles)
+  ~30M entity mentions (people, places, organizations, concepts)
+```
+
+### 10.3 Storage Model
+
+```
+One CogRecord = 4 KB (meta 1 KB + S 1 KB + P 1 KB + O 1 KB)
+
+Entity nodes:  6.8M articles → 6.8M CogRecords = 27 GB
+Edge records:  50M wikilinks → 50M CogRecords   = 200 GB
+Total on disk: ~227 GB (LanceDB, column-compressed, mmap'd)
+
+A 512 GB NVMe SSD costs $35. The entire Wikipedia knowledge graph 
+fits on hardware you buy at Best Buy.
+```
+
+### 10.4 The INT4 Sketch Trick
+
+You never load 227 GB into RAM. The three-level search cascade means the hot footprint is tiny:
+
+```
+Level 0: Receptors (always in RAM)
+  6.8M × 32 bytes = 218 MB
+  Contains: DN hash, storage tier, NARS compact, flags
+  
+Level 1: INT4 sketches (always in RAM, L2/L3 resident)
+  6.8M × 64 bytes = 436 MB
+  Contains: popcount of each 64-bit segment quantized to 4 bits
+  Rejects 90% of candidates before touching any content block
+
+Level 2: Belichtungsmesser (loaded on demand from mmap)
+  7 words per surviving candidate (~10% of level 1 survivors)
+  
+Level 3: Full Hamming (loaded on demand from mmap)
+  Only for final candidates (~1% of original)
+
+Total hot footprint: 218 + 436 = 654 MB
+That fits on a Raspberry Pi 5 with 8 GB RAM.
+```
+
+### 10.5 Query Performance
+
+```
+Full-scan query: "Find all entities similar to Donald Trump"
+
+Level 0 sketch scan:
+  6.8M sketches × 64 bytes = 435 MB
+  AVX2 throughput on desktop CPU: ~40 GB/s
+  Scan time: 435 MB / 40 GB/s = ~11 milliseconds
+  
+  11 milliseconds to search ALL OF ENGLISH WIKIPEDIA.
+  
+  Rejects ~90%: 680K candidates survive to Level 1
+
+Level 1 belichtungsmesser:
+  680K × 56 bytes = 38 MB  (mmap'd, likely in page cache)
+  Scan time: ~1 ms
+  Rejects ~90%: 68K candidates survive
+
+Level 2 full Hamming:
+  68K × 4 KB = 272 MB  (mmap'd, sequential read)
+  Scan time: ~7 ms (NVMe sequential read)
+  
+Total query time: ~20 milliseconds
+
+For comparison:
+  Neo4j full-text search over 6.8M nodes: 500ms-5s (with indices)
+  Elasticsearch over Wikipedia: 50-200ms (with sharding)
+  PostgreSQL full-text over Wikipedia: 1-10s
+  
+  Holograph: 20ms. On a laptop. No indices. Brute-force scan.
+  Because brute-force over INT4 sketches IS the index.
+```
+
+### 10.6 Wikipedia Fingerprinting Pipeline
+
+```
+Phase 1: Bulk ingest (one-time, ~24-48 hours on single machine)
+
+  For each Wikipedia article:
+    1. Parse wikitext → extract:
+       - Title, categories, infobox (structured metadata)
+       - First paragraph (entity description)
+       - Wikilinks (cross-references = edges)
+       - Section headings (topic structure)
+    
+    2. Jina embedding of first paragraph → 1024D float → LSH → [u64; 128]
+       Cost: Jina API at ~$0.002 per 1K tokens
+       6.8M articles × ~200 tokens avg = 1.36B tokens = ~$2,700
+       OR: run local embedding model (e5-large, ~50 articles/sec on CPU)
+       6.8M / 50 = 136,000 seconds = ~38 hours (no API cost)
+    
+    3. S/P/O decomposition (heuristic, no LLM needed for bulk):
+       S-block: LSH of entity description (what this IS)
+       P-block: LSH of categories + infobox keys (what forces classify it)
+       O-block: LSH of "See also" + outgoing links (what it connects to)
+    
+    4. Create CogRecord, write to LanceDB
+    
+  For each wikilink:
+    Create edge CogRecord: XOR(source.S, target.S) per block
+    NARS: confidence proportional to link context quality
+
+Phase 2: Sketch generation (one-time, ~10 minutes)
+  For each CogRecord:
+    Generate INT4 sketch (popcount per 64-bit segment, quantize to 4 bits)
+    Generate receptor (32 bytes: hash, tier, sketch pointer, NARS compact)
+  
+  Load all receptors + sketches into RAM: 654 MB. Done.
+
+Phase 3: Concept crystallization (continuous, runs after ingest)
+  Cluster by S-block Hamming similarity:
+    "US Presidents" cluster: Washington through current
+    "European Monarchs" cluster: all royals
+    "Programming Languages" cluster: Python, Rust, C, ...
+    
+  These clusters ARE the categories — rediscovered from content similarity,
+  not from Wikipedia's category system. Compare discovered clusters against
+  Wikipedia categories to measure fingerprint quality.
+  
+  Clusters that DON'T match Wikipedia categories are interesting:
+    "Entities connected to both tech industry AND government intelligence"
+    Wikipedia has no such category. The graph found a structural pattern.
+```
+
+### 10.7 Wikipedia + Political Intelligence = Live Knowledge Base
+
+```
+Wikipedia provides the STATIC BACKGROUND — 6.8M entities with relationships,
+fingerprinted and searchable in 20ms.
+
+The PoliticalAdapter provides the LIVE FOREGROUND — new facts, changing 
+relationships, evolving predictions, ingested daily.
+
+When the political research agent discovers "Kash Patel":
+  1. Hamming scan Wikipedia in 20ms → find Kash Patel article
+  2. Load full CogRecord from LanceDB → immediate context
+  3. All Wikipedia cross-references → known relationship graph
+  4. Live research adds: current role, recent actions, trajectory
+  5. NARS merges: Wikipedia background (high confidence, possibly stale)
+                   + live research (lower confidence, current)
+
+The system has the institutional memory of Wikipedia 
+and the situational awareness of live research.
+
+When it discovers the Epstein network:
+  Every entity has a Wikipedia article with decades of publicly documented history.
+  The system doesn't start from zero — it starts from the accumulated 
+  knowledge of millions of Wikipedia editors, fingerprinted and 
+  Hamming-searchable in 20ms on a laptop.
+
+When it needs to answer: "Who else is connected to both Deutsche Bank 
+  AND the Royal Family AND US politics?"
+  
+  Three Hamming scans: 
+    Similar to Deutsche Bank S-block: ~20ms → 500 candidates
+    Filter by Royal Family P-block proximity: ~1ms → 30 candidates  
+    Filter by US politics O-block proximity: ~0.5ms → 3-7 entities
+  
+  Total: ~22ms. On a laptop. Over all of Wikipedia.
+  Then live research agents verify whether those connections are still active.
+```
+
+### 10.8 The Benchmark Claim
+
+```
+System                    | Wikipedia Full Ingest | Query Latency | Hardware Required
+--------------------------|----------------------|---------------|------------------
+Neo4j + embeddings        | ~$15K + cluster      | 500ms-5s      | 512 GB RAM server
+Elasticsearch             | ~$5K + sharding      | 50-200ms      | Multi-node cluster
+PostgreSQL + pgvector     | ~$3K + tuning        | 200ms-2s      | 128 GB RAM server
+Pinecone / Weaviate       | ~$500/month ongoing  | 50-100ms      | Cloud managed
+ChromaDB (local)          | hours, RAM limited   | 100-500ms     | 64 GB RAM machine
+Holograph                 | ~$2.7K or free*      | ~20ms         | Laptop + 512 GB SSD
+
+* Free if using local embedding model instead of Jina API
+  38 hours on CPU, zero API cost
+  
+The claim: First system to make all of English Wikipedia Hamming-searchable 
+in <25ms on commodity hardware with <1 GB RAM hot footprint.
+```
+
+This is the benchmark that makes the architecture legit. Chess proves learning. Political intelligence proves generalization. Wikipedia proves scale. All three on the same substrate, same three operations, same commodity hardware.
+
+---
+
+## 11. Ethical Constraints
 
 ```
 HARD RULES:

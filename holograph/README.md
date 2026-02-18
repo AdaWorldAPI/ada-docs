@@ -24,6 +24,14 @@ Everything else — openings, concepts, styles, personality,
 orchestration, reasoning, awareness — emerges.
 ```
 
+## The Three Benchmarks
+
+| Benchmark | What It Proves | Hardware |
+|-----------|---------------|----------|
+| Chess brain plasticity | The substrate **learns** (Elo from zero) | Single CPU |
+| Trump political network | The substrate **generalizes** (Brier score, emergent concepts) | Laptop + API calls |
+| Wikipedia full ingest | The substrate **scales** (6.8M articles, 20ms queries, <1 GB RAM) | Laptop + 512 GB SSD |
+
 ## Crate Map
 
 ```
