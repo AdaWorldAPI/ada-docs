@@ -8,7 +8,8 @@ RedisGraph reimagined in Hamming 3D. Neo4j at 6,000× speed.
 
 | Doc | Purpose | Read When |
 |-----|---------|-----------|
-| [SCHEMA_SPECIFICATION.md](SCHEMA_SPECIFICATION.md) | Domain-blind schema. Six decisions preventing domain lock-in. DomainAdapter trait. | **Read first.** Always. |
+| [CAM_CODEBOOK.md](CAM_CODEBOOK.md) | Content Addressable Memory via learned codebook. 8,192 concepts per axis. Multipass cascade. Why the fingerprint is interpretable. Why cross-domain transfer works. | **Read first.** The foundation. |
+| [SCHEMA_SPECIFICATION.md](SCHEMA_SPECIFICATION.md) | Domain-blind schema. Six decisions preventing domain lock-in. DomainAdapter trait. | After CAM_CODEBOOK. The rules. |
 | [VALIDATION_LADDER.md](VALIDATION_LADDER.md) | The escalation path: Chess → AIWar → WikiLeaks → Wikipedia → Live Politics → Cross-Domain. AIWarAdapter + WikiLeaksAdapter full specs. Publication strategy. | Understanding the argument. |
 | [INTEGRATION_MAP_v3.md](INTEGRATION_MAP_v3.md) | Substrate architecture. Container geometry, SPOQ viewpoints, blackboard threading, crate map, execution phases. | Building the substrate. |
 | [CHESS_BRAIN_PLASTICITY.md](CHESS_BRAIN_PLASTICITY.md) | Step 1: Perfect information. 8×8 board as XOR network. Zero-knowledge self-play → concepts → Elo. | Implementing ChessAdapter. |
@@ -17,12 +18,19 @@ RedisGraph reimagined in Hamming 3D. Neo4j at 6,000× speed.
 ## The Thesis
 
 ```
-One node type:  CogRecord(Xyz) — S + P + O blocks, each [u64; 128]
-One edge type:  CogRecord(Xyz) — XOR(source, target) per block
-Three ops:      BIND (XOR), HAMMING (popcount), BUNDLE (majority vote)
+Content Addressable Memory with learned codebook.
 
-Everything else — openings, concepts, styles, personality,
-orchestration, reasoning, awareness — emerges.
+8,192 concepts per axis (S, P, O). 24,576 total vocabulary.
+Each bit = one concept in domain-specific vocabulary.
+Fingerprint = presence vector: "which concepts activate here?"
+Hamming distance = concept overlap. XOR = concept difference. 
+Bundle = prototype. Every operation is interpretable.
+
+Multipass fidelity cascade:
+  qidx (8 bits) → sketch (512 bits) → belichtungsmesser (448 bits) → full (8,192 bits)
+
+Cross-domain transfer = codebook alignment in shared embedding space.
+Same substrate. Same three ops (BIND, HAMMING, BUNDLE). Five domain adapters.
 ```
 
 ## The Six-Step Validation Ladder
