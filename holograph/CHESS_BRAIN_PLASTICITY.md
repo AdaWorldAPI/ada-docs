@@ -28,12 +28,14 @@ Add occupancy, attacks, pins, checks = ~20 bitboards = 20 u64 words.
 
 **A chess position fits in 20 words of a 128-word Container.** The remaining 108 words are free for learned features — the system fills them as it discovers concepts.
 
-### 1.1 The Position Container
+### 1.1 The Position Container (ChessAdapter Projections)
+
+> **Schema Rule:** The word assignments below are decisions made by the ChessAdapter's Fingerprinter, NOT fixed Container specifications. A GeoAdapter or MusicAdapter would project entirely different data to the same word positions. The Container itself is 128 opaque words per block. See `SCHEMA_SPECIFICATION.md`.
 
 ```
 CogRecord(Xyz) at dn!("chess.pos.{hash}")
 
-Meta [u64; 128]:
+Meta [u64; 128]:  ← FIXED LAYOUT (same across all domains)
   W0:     Position hash (Zobrist)
   W1:     Type flags, geometry, move number, side to move, castling, en passant
   W2:     Timestamps (when first seen, last seen)
@@ -43,9 +45,13 @@ Meta [u64; 128]:
           conf = f(game_count) — more games = higher confidence
   W8-W11: Layer markers, collapse gate state
   W12-W15: Contradiction intensity (INT4) against other agents' view of this position
-  W16-W31: Reserved for learned features (empty at start, fills as concepts crystallize)
+  W16-W31: Reserved for future use
+  W32-W63: Concept binding signatures (which crystallized concepts activate here)
+           64 slots × 4 bytes: concept_dn_hash(u16) + strength(u8) + type(u8)
+           EMPTY AT START — fills as concepts crystallize during play
+  W64-W127: Reserved
 
-S-block [u64; 128] — WHAT IS HERE (structure):
+S-block [u64; 128]:  ← OPAQUE (ChessAdapter decides what goes where)
   W0-W5:   Piece bitboards: WP WN WB WR WQ WK (white pieces)
   W6-W11:  Piece bitboards: BP BN BB BR BQ BK (black pieces)
   W12:     White occupancy (OR of W0-W5)
@@ -53,32 +59,29 @@ S-block [u64; 128] — WHAT IS HERE (structure):
   W14:     All occupancy
   W15:     Pawn structure (WP | BP — just pawns, the skeleton of the position)
   W16-W31: Material signature + pawn hash + king zone
-  W32-W63: Learned structural features (EMPTY AT START — fills via crystallization)
-  W64-W127: Orthogonal structural space (decorrelated features, discovered)
+  W32-W127: Orthogonal structural space (empty, available for discovered features)
 
-P-block [u64; 128] — WHAT FORCES ACT (tension):
-  W0-W5:   White attack bitboards per piece type (where each piece type attacks)
+P-block [u64; 128]:  ← OPAQUE (ChessAdapter decides what goes where)
+  W0-W5:   White attack bitboards per piece type
   W6-W11:  Black attack bitboards per piece type
   W12:     White total attacks (OR of W0-W5)
   W13:     Black total attacks (OR of W6-W11)
-  W14:     Tension squares (W12 AND W13 — where attacks overlap = contested squares)
-  W15:     Pin rays (squares involved in absolute pins)
-  W16-W19: X-ray attacks (discovered attack potential)
+  W14:     Tension squares (W12 AND W13 — contested squares)
+  W15:     Pin rays
+  W16-W19: X-ray attacks
   W20-W23: King safety zones + attack counts
-  W24-W31: Mobility (legal move count per piece encoded as bitfield)
-  W32-W63: Learned force features (EMPTY AT START)
-  W64-W127: Orthogonal force space
+  W24-W31: Mobility (legal move count per piece)
+  W32-W127: Orthogonal force space
 
-O-block [u64; 128] — WHAT CAN HAPPEN (consequences):
-  W0-W5:   Legal move destinations per piece type (white to move)
-  W6-W11:  Threat squares (where white can capture next move)
-  W12-W15: Tactical motifs (fork squares, skewer lines, discovered attack potential)
-  W16-W31: Result fingerprint (accumulated XOR of all game outcomes from this position)
-  W32-W63: Learned consequence features (EMPTY AT START)
-  W64-W127: Orthogonal consequence space
+O-block [u64; 128]:  ← OPAQUE (ChessAdapter decides what goes where)
+  W0-W5:   Legal move destinations per piece type
+  W6-W11:  Threat squares
+  W12-W15: Tactical motifs
+  W16-W31: Result fingerprint (accumulated XOR of all game outcomes from here)
+  W32-W127: Orthogonal consequence space
 ```
 
-Key insight: **W32-W127 of each block starts empty.** These 288 words (96 per block) are the system's learned representation. As the agent plays games and concepts crystallize, these words fill with discovered patterns. The Container IS the neural network weights for this position — and they grow as learning progresses.
+Key insight: **Meta W32-W63 starts empty.** These 32 words (256 bytes) hold concept binding signatures — pointers to which crystallized concepts activate at this position. As the agent plays games and concepts crystallize, these slots fill with (concept_hash, strength, type) tuples. The Container doesn't encode WHAT a concept means. It encodes THAT a concept activates here. The concept's meaning lives in its own CogRecord in the graph. This is what enables cross-domain transfer: if a chess concept and a geopolitics concept have similar binding signatures (measured by Hamming distance), they may represent analogous structural truths.
 
 ### 1.2 The Move Is an Edge, Not a Node
 
@@ -530,13 +533,76 @@ Everything that works for chess transfers directly:
 | Novel concept discovery | Novel geopolitical insight discovery |
 | Multi-agent cross-pollination | Multi-analyst consensus building |
 
-Chess is where you prove the architecture. Reality is where you deploy it. The code is identical — only the fingerprinting function changes (bitboard extraction vs text embedding via Jina).
+Chess is where you prove the architecture. Reality is where you deploy it. The code is identical — only the DomainAdapter changes (ChessAdapter uses bitboard extraction, GeoAdapter uses Jina embeddings → LSH).
 
 ---
 
-## 6. Implementation
+## 6. Cross-Domain Transfer Experiment
 
-### 6.1 Dependencies
+After the chess brain plasticity experiment produces crystallized concepts, test whether those concepts have structural analogs in other domains:
+
+### 6.1 Protocol
+
+```
+Phase 1: Chess (this document)
+  - Run brain plasticity experiment → N crystallized concepts
+  - Each concept has binding signature in meta W32-W63
+  - Each concept has S, P, O fingerprints at its DN address
+
+Phase 2: Geopolitics (parallel, independent)
+  - Run GeoAdapter with entity data from real world
+  - Contradiction-driven exploration via web search
+  - Independent concept crystallization → M concepts
+  
+Phase 3: Cross-Domain Hamming Scan
+  - For each chess concept C_i:
+    For each geo concept G_j:
+      distance = hamming(C_i.binding_signature, G_j.binding_signature)
+      if distance < TRANSFER_THRESHOLD:
+        Hypothesis: C_i and G_j are structural analogs
+        
+  - Verify: does C_i's NARS correlation hold for G_j?
+    (e.g., "positions with this pattern correlate with advantage"
+     → "entities with this pattern correlate with influence persistence")
+  
+  - If verified: genuine cross-domain transfer from substrate alone.
+    No retraining. No mapping function. Just Hamming comparison.
+```
+
+### 6.2 Expected Analogs
+
+```
+Chess "outpost"              ↔  Geo "strategic chokepoint"
+  (fixed advantageous square)     (fixed position of leverage)
+  
+Chess "tempo"                ↔  Geo "initiative"  
+  (gaining a move advantage)      (forcing others to react)
+
+Chess "overextension"        ↔  Geo "imperial overreach"
+  (pieces too far advanced)       (commitments exceeding capacity)
+
+Chess "passed pawn"          ↔  Geo "emerging power"
+  (unstoppable advancing piece)   (entity with clear growth trajectory)
+```
+
+These analogs are NOT programmed. The system discovers them through binding signature proximity. The human labels above are for illustration. The system finds: "concept #47 (chess) and concept #12 (geo) have Hamming distance 41 and both correlate with positive outcomes for the entity with the pattern."
+
+### 6.3 The Validation Ladder
+
+| Publication | What It Proves |
+|-------------|---------------|
+| #1: Chess brain plasticity | The substrate learns. Self-play → concepts → Elo. |
+| #2: Geo knowledge graph | The substrate generalizes. Same ops, different adapter, useful predictions (Brier score). |
+| #3: Cross-domain transfer | Concepts transfer. Binding signatures match across domains. |
+| #4: N-domain substrate | The architecture scales. One binary, N adapters, shared concept space. |
+
+If #3 works, we have evidence that the SPOQ decomposition + BIND/Hamming/bundle discovers domain-invariant structural truths. That's not a chess engine. That's a substrate for cognition.
+
+---
+
+## 7. Implementation
+
+### 7.1 Dependencies
 
 ```toml
 [dependencies]
@@ -555,43 +621,65 @@ vampirc-uci = "0.11"    # Stockfish UCI protocol (for Elo measurement matches)
 pgn-reader = "0.25"     # For comparing against human games (style authenticity)
 ```
 
-### 6.2 Core Functions
+### 7.2 Core Functions
 
 ```rust
-/// Convert a shakmaty Board to a position CogRecord
-fn board_to_cogrecord(board: &Chess) -> CogRecord {
-    let mut record = CogRecord::new(ContainerGeometry::Xyz);
-    
-    // S-block: structure (piece bitboards → container words)
-    // Each piece bitboard is already a u64. Direct copy.
-    record.block_s.words[0] = board.white().pawns().0;
-    record.block_s.words[1] = board.white().knights().0;
-    record.block_s.words[2] = board.white().bishops().0;
-    record.block_s.words[3] = board.white().rooks().0;
-    record.block_s.words[4] = board.white().queens().0;
-    record.block_s.words[5] = board.white().king().0;
-    record.block_s.words[6] = board.black().pawns().0;
-    // ... etc
-    
-    // P-block: tension (attack bitboards)
-    for piece_type in PieceType::ALL {
-        for sq in board.pieces_of(White, piece_type) {
-            record.block_p.words[piece_type.index()] |= attacks(board, sq).0;
+/// ChessAdapter: Convert a shakmaty Board to a position CogRecord
+/// These word assignments are the ChessAdapter's choice, not Container spec.
+impl DomainAdapter for ChessAdapter {
+    type Input = Chess;
+    type Experiment = Chess;
+    type Observation = GameResult;
+
+    fn fingerprint(&self, board: &Chess) -> CogRecord {
+        let mut record = CogRecord::new(ContainerGeometry::Xyz);
+        
+        // S-block: structure (piece bitboards → container words)
+        // Each piece bitboard is already a u64. Direct copy.
+        // THESE WORD POSITIONS ARE CHESS-SPECIFIC CHOICES.
+        record.block_s.words[0] = board.white().pawns().0;
+        record.block_s.words[1] = board.white().knights().0;
+        record.block_s.words[2] = board.white().bishops().0;
+        record.block_s.words[3] = board.white().rooks().0;
+        record.block_s.words[4] = board.white().queens().0;
+        record.block_s.words[5] = board.white().king().0;
+        record.block_s.words[6] = board.black().pawns().0;
+        // ... etc
+        
+        // P-block: tension (attack bitboards)
+        for piece_type in PieceType::ALL {
+            for sq in board.pieces_of(White, piece_type) {
+                record.block_p.words[piece_type.index()] |= attacks(board, sq).0;
+            }
         }
+        record.block_p.words[14] = (record.block_p.words[12] & record.block_p.words[13]); // tension
+        
+        // O-block: consequences (legal move destinations)
+        for mv in board.legal_moves() {
+            let dest_bit = 1u64 << mv.to() as u32;
+            record.block_o.words[mv.piece().index()] |= dest_bit;
+        }
+        
+        record
     }
-    record.block_p.words[14] = (record.block_p.words[12] & record.block_p.words[13]); // tension
-    
-    // O-block: consequences (legal move destinations)
-    for mv in board.legal_moves() {
-        let dest_bit = 1u64 << mv.to() as u32;
-        record.block_o.words[mv.piece().index()] |= dest_bit;
+
+    fn generate_experiment(&self, contradiction: &Contradiction) -> Chess {
+        // Find or generate position exercising the hottest contradiction
+        generate_position_for_contradiction(contradiction)
     }
-    
-    record
+
+    fn observe(&self, position: &Chess) -> GameResult {
+        self_play(position)
+    }
+
+    fn outcome(&self, result: &GameResult) -> f32 {
+        match result { Win(White) => 1.0, Draw => 0.5, Win(Black) => 0.0 }
+    }
 }
 
-/// Convert a move to an edge CogRecord (XOR of before/after)
-fn move_to_edge(before: &CogRecord, after: &CogRecord) -> CogRecord {
+/// Substrate operation: any edge is XOR of source and target.
+/// This is domain-blind — works for chess moves, geopolitical events, harmonic transitions.
+fn make_edge(before: &CogRecord, after: &CogRecord) -> CogRecord {
     let mut edge = CogRecord::new(ContainerGeometry::Xyz);
     edge.block_s = before.block_s.xor(&after.block_s);  // structural delta
     edge.block_p = before.block_p.xor(&after.block_p);  // force delta
@@ -618,16 +706,16 @@ fn backpropagate(game: &[DnPath], result: f32, space: &BindSpace) -> Vec<Blackbo
     entries
 }
 
-/// Choose a move guided by knowledge graph
-fn choose_move(board: &Chess, space: &BindSpace, agent: &CogRecord) -> Move {
-    let current = board_to_cogrecord(board);
+/// ChessAdapter: Choose a move guided by knowledge graph
+fn choose_move(board: &Chess, space: &BindSpace, agent: &CogRecord, adapter: &ChessAdapter) -> Move {
+    let current = adapter.fingerprint(board);
     let mut best_move = None;
     let mut best_score = f32::MAX;
     
     for mv in board.legal_moves() {
         let mut after_board = board.clone();
         after_board.play_unchecked(&mv);
-        let after = board_to_cogrecord(&after_board);
+        let after = adapter.fingerprint(&after_board);
         
         // How much does this move's outcome look like what I want?
         let consequence_fit = after.block_o.hamming(&agent.block_o); // style alignment
@@ -653,7 +741,7 @@ fn choose_move(board: &Chess, space: &BindSpace, agent: &CogRecord) -> Move {
 }
 ```
 
-### 6.3 First Milestone
+### 7.3 First Milestone
 
 ```
 10,000 self-play games with zero starting knowledge.

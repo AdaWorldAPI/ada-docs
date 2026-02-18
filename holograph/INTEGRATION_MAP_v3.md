@@ -36,7 +36,9 @@ No crate owns the others. They link statically. They share `&BindSpace` through 
 
 ---
 
-## 1. The Container: Configurable SIMD Instrument
+## 1. The Container: Domain-Blind SIMD Instrument
+
+> **Schema Rule:** Content blocks (S, P, O) are opaque bags of bits. The DomainAdapter's Fingerprinter decides what maps to which word. The Container never knows or cares what domain it's serving. Only the meta block has fixed field assignments. See `SCHEMA_SPECIFICATION.md` for the six domain-invariance decisions.
 
 ### 1.1 The Fundamental Unit
 
@@ -102,6 +104,8 @@ The geometry byte or a flag in W1 selects which interpretation. Both modes use t
 ---
 
 ## 2. The 3D Node: SPOQ at SIMD Width
+
+> **Domain Note:** The S/P/O decomposition is domain-independent: S = being, P = becoming, O = could-be. The examples below use the ChessAdapter's projections. A GeoAdapter projects entity identity → S, geopolitical forces → P, predicted trajectories → O. The Container layout is identical. Only the Fingerprinter differs. See `SCHEMA_SPECIFICATION.md`.
 
 ### 2.1 Node as Viewpoint
 
@@ -569,7 +573,32 @@ Branch: holograph feature/3d-edges
 
 ---
 
-## 10. The Formula
+## 10. Domain Adapters
+
+The substrate is domain-blind. Domain knowledge enters through a pluggable adapter:
+
+```rust
+trait DomainAdapter {
+    type Input;
+    type Experiment;
+    type Observation;
+    
+    fn fingerprint(&self, input: &Self::Input) -> CogRecord;
+    fn generate_experiment(&self, contradiction: &Contradiction) -> Self::Experiment;
+    fn observe(&self, experiment: &Self::Experiment) -> Self::Observation;
+    fn outcome(&self, observation: &Self::Observation) -> f32;
+}
+```
+
+The active learning loop is universal: uncertainty scan → experiment → observation → NARS revision → crystallization check. Only `generate_experiment()` and `observe()` are domain-specific. Everything else — Hamming search, BIND, bundle, NARS, blackboard, contradiction tracking — is substrate.
+
+Chess is the first adapter. Geopolitics is the second. If both produce useful knowledge with no substrate changes, the architecture is validated. If concepts discovered in chess have binding signatures that correlate with concepts discovered in geopolitics (measured by Hamming distance), that's cross-domain transfer learning from the substrate alone.
+
+See `SCHEMA_SPECIFICATION.md` for the full DomainAdapter trait and reference implementations.
+
+---
+
+## 11. The Formula
 
 ```
 holograph = ladybug-rs (substrate)

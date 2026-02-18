@@ -9,7 +9,8 @@ RedisGraph reimagined in Hamming 3D. Neo4j at 6,000× speed.
 | Doc | Purpose |
 |-----|---------|
 | [INTEGRATION_MAP_v3.md](INTEGRATION_MAP_v3.md) | The definitive architecture document. Container geometry, SPOQ viewpoints, blackboard threading, crate responsibilities, execution phases. Handoff doc for Claude Code sessions. |
-| [CHESS_BRAIN_PLASTICITY.md](CHESS_BRAIN_PLASTICITY.md) | Validation harness. 8×8 board as XOR network. Brain plasticity experiment: zero-knowledge self-play → emergent concepts → measurable Elo. Proves fingerprint semantics work. |
+| [SCHEMA_SPECIFICATION.md](SCHEMA_SPECIFICATION.md) | Domain-blind schema. Six decisions that prevent Holograph from becoming a chess engine. DomainAdapter trait, Fingerprinter interface, cross-domain transfer protocol. **Read this before implementing any Container layout.** |
+| [CHESS_BRAIN_PLASTICITY.md](CHESS_BRAIN_PLASTICITY.md) | Validation harness. 8×8 board as XOR network. Brain plasticity experiment: zero-knowledge self-play → emergent concepts → measurable Elo. Cross-domain transfer experiment. |
 
 ## The Thesis
 
@@ -27,12 +28,15 @@ orchestration, reasoning, awareness — emerges.
 ```
 holograph/
   crates/
-    ladybug-rs/     substrate (BindSpace, Container, SIMD, NARS)
-    neo4j-rs/       Cypher compiler (~2,100 LOC parser only)
-    crewai-rust/    orchestration (agents are nodes, routing is hamming)
-    ada-n8n/        workflow (Arrow Flight for cross-machine only)
+    ladybug-rs/     substrate (BindSpace, Container, SIMD, NARS) — domain-blind
+    neo4j-rs/       Cypher compiler (~2,100 LOC parser only) — domain-blind
+    crewai-rust/    orchestration (agents are nodes, routing is hamming) — domain-blind
+    ada-n8n/        workflow (Arrow Flight for cross-machine only) — domain-blind
+  adapters/
+    chess/          ChessAdapter (shakmaty, bitboard fingerprinting)
+    geo/            GeoAdapter (Jina embeddings, LSH, web search)
 
-cargo build --release → holograph (one binary)
+cargo build --release → holograph (one binary, multiple adapters)
 ```
 
 ## Status (2026-02-18)
