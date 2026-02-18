@@ -9,9 +9,10 @@ RedisGraph reimagined in Hamming 3D. Neo4j at 6,000× speed.
 | Doc | Purpose | Read When |
 |-----|---------|-----------|
 | [SCHEMA_SPECIFICATION.md](SCHEMA_SPECIFICATION.md) | Domain-blind schema. Six decisions preventing domain lock-in. DomainAdapter trait. | **Read first.** Always. |
+| [VALIDATION_LADDER.md](VALIDATION_LADDER.md) | The escalation path: Chess → AIWar → WikiLeaks → Wikipedia → Live Politics → Cross-Domain. AIWarAdapter + WikiLeaksAdapter full specs. Publication strategy. | Understanding the argument. |
 | [INTEGRATION_MAP_v3.md](INTEGRATION_MAP_v3.md) | Substrate architecture. Container geometry, SPOQ viewpoints, blackboard threading, crate map, execution phases. | Building the substrate. |
-| [CHESS_BRAIN_PLASTICITY.md](CHESS_BRAIN_PLASTICITY.md) | First adapter. 8×8 board as XOR network. Zero-knowledge self-play → concepts → Elo. Cross-domain transfer. | Implementing ChessAdapter. |
-| [POLITICAL_INTELLIGENCE.md](POLITICAL_INTELLIGENCE.md) | Second adapter. LLM-in-the-loop fingerprinting, dynamic agent spawning, live knowledge graph of Trump's political network, Brier score prediction scoring. The real demo. | Implementing PoliticalAdapter. |
+| [CHESS_BRAIN_PLASTICITY.md](CHESS_BRAIN_PLASTICITY.md) | Step 1: Perfect information. 8×8 board as XOR network. Zero-knowledge self-play → concepts → Elo. | Implementing ChessAdapter. |
+| [POLITICAL_INTELLIGENCE.md](POLITICAL_INTELLIGENCE.md) | Steps 4-5: Scale + live intelligence. Wikipedia commodity benchmark, LLM-in-the-loop, dynamic agent spawning, Trump network, Brier score. | Implementing PoliticalAdapter + WikipediaAdapter. |
 
 ## The Thesis
 
@@ -24,13 +25,18 @@ Everything else — openings, concepts, styles, personality,
 orchestration, reasoning, awareness — emerges.
 ```
 
-## The Three Benchmarks
+## The Six-Step Validation Ladder
 
-| Benchmark | What It Proves | Hardware |
-|-----------|---------------|----------|
-| Chess brain plasticity | The substrate **learns** (Elo from zero) | Single CPU |
-| Trump political network | The substrate **generalizes** (Brier score, emergent concepts) | Laptop + API calls |
-| Wikipedia full ingest | The substrate **scales** (6.8M articles, 20ms queries, <1 GB RAM) | Laptop + 512 GB SSD |
+| Step | Domain | What It Proves | Hardware | Ground Truth |
+|------|--------|---------------|----------|-------------|
+| 1 | Chess | Substrate **learns** | Single CPU | Win/loss (Elo) |
+| 2 | AIWar | Handles **fog of war** | Single CPU + game | Win rate vs AI difficulty |
+| 3 | WikiLeaks | Reads **real intelligence** | Laptop + $300 API | Historical hindsight (Brier) |
+| 4 | Wikipedia | **Scales** to 6.8M entities | Laptop + 512 GB SSD | Category rediscovery rate |
+| 5 | Live politics | **Generalizes** to current events | Railway + API | Prediction accuracy (Brier) |
+| 6 | Cross-domain | Concepts **transfer** | Same | Binding signature correlation |
+
+Same substrate. Same three operations. Same 8-line loop. Only the adapter changes.
 
 ## Crate Map
 
@@ -43,20 +49,25 @@ holograph/
     ada-n8n/        workflow (Arrow Flight for cross-machine only) — domain-blind
   adapters/
     chess/          ChessAdapter (shakmaty, bitboard fingerprinting)
-    geo/            GeoAdapter (Jina embeddings, LSH, web search)
+    aiwar/          AIWarAdapter (fog of war, NARS confidence from visibility)
+    wikileaks/      WikiLeaksAdapter (cable corpus, LLM extraction, historical verification)
+    wikipedia/      WikipediaAdapter (dump parser, local embeddings, 654 MB sketch index)
+    political/      PoliticalAdapter (Jina + LLM, web search, agent spawning)
 
-cargo build --release → holograph (one binary, multiple adapters)
+cargo build --release → holograph (one binary, five adapters)
 ```
 
 ## Status (2026-02-18)
 
 - Architecture: defined (INTEGRATION_MAP_v3, SCHEMA_SPECIFICATION)
 - Domain-blind schema: specified (6 decisions, DomainAdapter trait)
+- Validation ladder: complete (6 steps, 6 papers, VALIDATION_LADDER)
 - Substrate (ladybug-rs): exists, needs gap wiring + NARS k fix
 - Cypher compiler (neo4j-rs): needs RISC refactor (delete 3,403 LOC)
 - One binary workspace: not yet created
 - ChessAdapter: designed, not implemented
+- AIWarAdapter: designed, not implemented
+- WikiLeaksAdapter: designed, not implemented
+- WikipediaAdapter: designed, not implemented
 - PoliticalAdapter: designed, not implemented
-- Brain plasticity experiment: designed, not running
-- Political intelligence demo: designed, not running
-- Cross-domain transfer: designed, depends on both adapters running
+- Cross-domain transfer: designed, depends on 2+ adapters running
