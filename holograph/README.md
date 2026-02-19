@@ -7,6 +7,7 @@ RedisGraph reimagined in Hamming 3D. Neo4j at 6,000× speed.
 ## Documents
 
 | Doc | Purpose | Read When |
+| [META_QUADRANTS.md](META_QUADRANTS.md) | The four quadrants of the meta block. Q1=CAM, Q2=EDGES, Q3=LOWER NODES, Q4=undecided. Canonical. Do not reassign. | **Read before everything.** The ground truth. |
 |-----|---------|-----------|
 | [CAM_CODEBOOK.md](CAM_CODEBOOK.md) | What the fingerprint IS: presence vector over learned vocabulary. | **Read first.** The mechanism. |
 | [CODEBOOK_MULTIPLEXING.md](CODEBOOK_MULTIPLEXING.md) | Container speaks whatever language fits. Resonance-driven codebook selection. Crystallization = plasticity. Meta-think codebook. 10 contracts. | **Read second.** The architecture. |
