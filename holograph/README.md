@@ -2,22 +2,25 @@
 
 **A graph database where every node is a 3D SIMD vector, every edge carries subjective perspective, and every query is a Hamming search.**
 
-RedisGraph reimagined in Hamming 3D. Neo4j at 6,000× speed.
+## ⚠️ READ FIRST
 
-## Documents
+**[HOLOGRAPH_CONTRACT.md](HOLOGRAPH_CONTRACT.md)** — The single source of truth. If any other document contradicts this, the contract wins. Contains ground truth tests for each phase.
 
-| Doc | Purpose | Read When |
-| [META_QUADRANTS.md](META_QUADRANTS.md) | The four quadrants of the meta block. Q1=CAM, Q2=EDGES, Q3=LOWER NODES, Q4=undecided. Canonical. Do not reassign. | **Read before everything.** The ground truth. |
-|-----|---------|-----------|
-| [CAM_CODEBOOK.md](CAM_CODEBOOK.md) | What the fingerprint IS: presence vector over learned vocabulary. | **Read first.** The mechanism. |
-| [CODEBOOK_MULTIPLEXING.md](CODEBOOK_MULTIPLEXING.md) | Container speaks whatever language fits. Resonance-driven codebook selection. Crystallization = plasticity. Meta-think codebook. 10 contracts. | **Read second.** The architecture. |
-| [EDGE_CONTRACT.md](EDGE_CONTRACT.md) | Explicit edges: topology in meta W12-W15, ports, execution state, delivery guarantees, payloads as nodes. YAML→CogRecord mapping. Cypher-like queries. 10 edge contracts. | When wiring graphs or building orchestration. |
-| [UNIVERSAL_SUBSTRATE.md](UNIVERSAL_SUBSTRATE.md) | Six break points hardened: C-block (4th axis), hierarchical codebook, concept splitting, embodiment vocabulary, temporal codebook, structural validation of cross-domain transfer. 8 contracts. | After CAM_CODEBOOK. The hardening. |
-| [SCHEMA_SPECIFICATION.md](SCHEMA_SPECIFICATION.md) | Domain-blind schema. Six decisions preventing domain lock-in. DomainAdapter trait. | After CAM_CODEBOOK. The rules. |
-| [VALIDATION_LADDER.md](VALIDATION_LADDER.md) | The escalation path: Chess → AIWar → WikiLeaks → Wikipedia → Live Politics → Cross-Domain. AIWarAdapter + WikiLeaksAdapter full specs. Publication strategy. | Understanding the argument. |
-| [INTEGRATION_MAP_v3.md](INTEGRATION_MAP_v3.md) | Substrate architecture. Container geometry, SPOQ viewpoints, blackboard threading, crate map, execution phases. | Building the substrate. |
-| [CHESS_BRAIN_PLASTICITY.md](CHESS_BRAIN_PLASTICITY.md) | Step 1: Perfect information. 8×8 board as XOR network. Zero-knowledge self-play → concepts → Elo. | Implementing ChessAdapter. |
-| [POLITICAL_INTELLIGENCE.md](POLITICAL_INTELLIGENCE.md) | Steps 4-5: Scale + live intelligence. Wikipedia commodity benchmark, LLM-in-the-loop, dynamic agent spawning, Trump network, Brier score. | Implementing PoliticalAdapter + WikipediaAdapter. |
+## Document Map
+
+| Doc | Status | Use |
+|-----|--------|-----|
+| [HOLOGRAPH_CONTRACT.md](HOLOGRAPH_CONTRACT.md) | **CANONICAL** | Read before everything. Meta layout, crate plan, enforcement rules, ground truth tests. |
+| [META_QUADRANTS.md](META_QUADRANTS.md) | ✅ Ground truth | Q1=CAM, Q2=EDGES, Q3=LOWER NODES, Q4=UNDECIDED. Never reassign. |
+| [CAM_CODEBOOK.md](CAM_CODEBOOK.md) | ✅ Good | The codebook pipeline. What the fingerprint actually is. |
+| [VALIDATION_LADDER.md](VALIDATION_LADDER.md) | ✅ Good | 6-step escalation: chess → AIWar → WikiLeaks → Wikipedia → politics → cross-domain. |
+| [CHESS_BRAIN_PLASTICITY.md](CHESS_BRAIN_PLASTICITY.md) | ⚠️ Meta layout wrong | §1.1 meta W32-W63 assignment is wrong. Everything else (XOR network, experiment, implementation) is good. |
+| [SCHEMA_SPECIFICATION.md](SCHEMA_SPECIFICATION.md) | ⚠️ Meta layout wrong | §Decision 2 meta layout contradicts contract. Decisions 1,3,4,5,6 are good. DomainAdapter trait is good. |
+| [CODEBOOK_MULTIPLEXING.md](CODEBOOK_MULTIPLEXING.md) | ⚠️ Meta layout wrong | §1 meta comment wrong. §2-§10 (resonance, crystallization, meta-think, contracts) are good ideas but uncommitted. |
+| [EDGE_CONTRACT.md](EDGE_CONTRACT.md) | ⚠️ Meta layout wrong | §2-§3 W32-W63/W64-W95 assignments wrong. §1,§4-§10 (primitives, content blocks, YAML, traversal, execution) are good. |
+| [INTEGRATION_MAP_v3.md](INTEGRATION_MAP_v3.md) | ⚠️ Meta layout wrong | §1.4 quadrants wrong. §0,§2-§9 (architecture, RISC, blackboard, crate map, status) are good. |
+| [POLITICAL_INTELLIGENCE.md](POLITICAL_INTELLIGENCE.md) | ✅ Good | PoliticalAdapter design, LLM-in-the-loop, live knowledge graph. |
+| [UNIVERSAL_SUBSTRATE.md](UNIVERSAL_SUBSTRATE.md) | ❓ Uncommitted | C-block proposal. Not decided. Don't implement yet. |
 
 ## The Thesis
 
@@ -26,59 +29,13 @@ The Container doesn't know what it holds.
 The Codebook tells it what its bits mean.
 When no Codebook fits, a new one is born.
 That's thinking.
-
-Container: meta (1KB) + 3 content blocks (3KB) = 4 KB fixed.
-Each block encodes against a codebook referenced in the meta header.
-Codebooks are learned vocabularies: 8,192 concepts each.
-Resonance-driven selection: content tested against ALL codebooks, top 3 win.
-When nothing resonates: orphan accumulation → new codebook crystallizes.
-Cross-domain: records that resonate against multiple codebooks bridge domains.
-Meta-think codebook: watches codebook operations. IS metacognition.
 ```
 
-## The Six-Step Validation Ladder
+## Status (2026-02-19)
 
-| Step | Domain | What It Proves | Hardware | Ground Truth |
-|------|--------|---------------|----------|-------------|
-| 1 | Chess | Substrate **learns** | Single CPU | Win/loss (Elo) |
-| 2 | AIWar | Handles **fog of war** | Single CPU + game | Win rate vs AI difficulty |
-| 3 | WikiLeaks | Reads **real intelligence** | Laptop + $300 API | Historical hindsight (Brier) |
-| 4 | Wikipedia | **Scales** to 6.8M entities | Laptop + 512 GB SSD | Category rediscovery rate |
-| 5 | Live politics | **Generalizes** to current events | Railway + API | Prediction accuracy (Brier) |
-| 6 | Cross-domain | Concepts **transfer** | Same | Binding signature correlation |
-
-Same substrate. Same three operations. Same 8-line loop. Only the adapter changes.
-
-## Crate Map
-
-```
-holograph/
-  crates/
-    ladybug-rs/     substrate (BindSpace, Container, SIMD, NARS) — domain-blind
-    neo4j-rs/       Cypher compiler (~2,100 LOC parser only) — domain-blind
-    crewai-rust/    orchestration (agents are nodes, routing is hamming) — domain-blind
-    ada-n8n/        workflow (Arrow Flight for cross-machine only) — domain-blind
-  adapters/
-    chess/          ChessAdapter (shakmaty, bitboard fingerprinting)
-    aiwar/          AIWarAdapter (fog of war, NARS confidence from visibility)
-    wikileaks/      WikiLeaksAdapter (cable corpus, LLM extraction, historical verification)
-    wikipedia/      WikipediaAdapter (dump parser, local embeddings, 654 MB sketch index)
-    political/      PoliticalAdapter (Jina + LLM, web search, agent spawning)
-
-cargo build --release → holograph (one binary, five adapters)
-```
-
-## Status (2026-02-18)
-
-- Architecture: defined (INTEGRATION_MAP_v3, SCHEMA_SPECIFICATION)
-- Domain-blind schema: specified (6 decisions, DomainAdapter trait)
-- Validation ladder: complete (6 steps, 6 papers, VALIDATION_LADDER)
-- Substrate (ladybug-rs): exists, needs gap wiring + NARS k fix
-- Cypher compiler (neo4j-rs): needs RISC refactor (delete 3,403 LOC)
-- One binary workspace: not yet created
-- ChessAdapter: designed, not implemented
-- AIWarAdapter: designed, not implemented
-- WikiLeaksAdapter: designed, not implemented
-- WikipediaAdapter: designed, not implemented
-- PoliticalAdapter: designed, not implemented
-- Cross-domain transfer: designed, depends on 2+ adapters running
+- Architecture: specified in HOLOGRAPH_CONTRACT.md
+- Implementation: **zero** — nothing from the holograph spec is coded yet
+- ladybug-rs: exists, has substrate code, needs gap wiring + NARS k fix
+- neo4j-rs: exists, needs 3,403 LOC deleted and CypherEngine implemented
+- One binary: not yet created
+- All adapters: designed, not implemented
