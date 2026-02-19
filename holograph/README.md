@@ -9,6 +9,7 @@ RedisGraph reimagined in Hamming 3D. Neo4j at 6,000× speed.
 | Doc | Purpose | Read When |
 |-----|---------|-----------|
 | [CAM_CODEBOOK.md](CAM_CODEBOOK.md) | Content Addressable Memory via learned codebook. 8,192 concepts per axis. Multipass cascade. Why the fingerprint is interpretable. Why cross-domain transfer works. | **Read first.** The foundation. |
+| [UNIVERSAL_SUBSTRATE.md](UNIVERSAL_SUBSTRATE.md) | Six break points hardened: C-block (4th axis), hierarchical codebook, concept splitting, embodiment vocabulary, temporal codebook, structural validation of cross-domain transfer. 8 contracts. | After CAM_CODEBOOK. The hardening. |
 | [SCHEMA_SPECIFICATION.md](SCHEMA_SPECIFICATION.md) | Domain-blind schema. Six decisions preventing domain lock-in. DomainAdapter trait. | After CAM_CODEBOOK. The rules. |
 | [VALIDATION_LADDER.md](VALIDATION_LADDER.md) | The escalation path: Chess → AIWar → WikiLeaks → Wikipedia → Live Politics → Cross-Domain. AIWarAdapter + WikiLeaksAdapter full specs. Publication strategy. | Understanding the argument. |
 | [INTEGRATION_MAP_v3.md](INTEGRATION_MAP_v3.md) | Substrate architecture. Container geometry, SPOQ viewpoints, blackboard threading, crate map, execution phases. | Building the substrate. |
