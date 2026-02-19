@@ -8,7 +8,8 @@ RedisGraph reimagined in Hamming 3D. Neo4j at 6,000× speed.
 
 | Doc | Purpose | Read When |
 |-----|---------|-----------|
-| [CAM_CODEBOOK.md](CAM_CODEBOOK.md) | Content Addressable Memory via learned codebook. 8,192 concepts per axis. Multipass cascade. Why the fingerprint is interpretable. Why cross-domain transfer works. | **Read first.** The foundation. |
+| [CAM_CODEBOOK.md](CAM_CODEBOOK.md) | What the fingerprint IS: presence vector over learned vocabulary. | **Read first.** The mechanism. |
+| [CODEBOOK_MULTIPLEXING.md](CODEBOOK_MULTIPLEXING.md) | Container speaks whatever language fits. Resonance-driven codebook selection. Crystallization = plasticity. Meta-think codebook. 10 contracts. | **Read second.** The architecture. |
 | [UNIVERSAL_SUBSTRATE.md](UNIVERSAL_SUBSTRATE.md) | Six break points hardened: C-block (4th axis), hierarchical codebook, concept splitting, embodiment vocabulary, temporal codebook, structural validation of cross-domain transfer. 8 contracts. | After CAM_CODEBOOK. The hardening. |
 | [SCHEMA_SPECIFICATION.md](SCHEMA_SPECIFICATION.md) | Domain-blind schema. Six decisions preventing domain lock-in. DomainAdapter trait. | After CAM_CODEBOOK. The rules. |
 | [VALIDATION_LADDER.md](VALIDATION_LADDER.md) | The escalation path: Chess → AIWar → WikiLeaks → Wikipedia → Live Politics → Cross-Domain. AIWarAdapter + WikiLeaksAdapter full specs. Publication strategy. | Understanding the argument. |
@@ -19,19 +20,18 @@ RedisGraph reimagined in Hamming 3D. Neo4j at 6,000× speed.
 ## The Thesis
 
 ```
-Content Addressable Memory with learned codebook.
+The Container doesn't know what it holds.
+The Codebook tells it what its bits mean.
+When no Codebook fits, a new one is born.
+That's thinking.
 
-8,192 concepts per axis (S, P, O). 24,576 total vocabulary.
-Each bit = one concept in domain-specific vocabulary.
-Fingerprint = presence vector: "which concepts activate here?"
-Hamming distance = concept overlap. XOR = concept difference. 
-Bundle = prototype. Every operation is interpretable.
-
-Multipass fidelity cascade:
-  qidx (8 bits) → sketch (512 bits) → belichtungsmesser (448 bits) → full (8,192 bits)
-
-Cross-domain transfer = codebook alignment in shared embedding space.
-Same substrate. Same three ops (BIND, HAMMING, BUNDLE). Five domain adapters.
+Container: meta (1KB) + 3 content blocks (3KB) = 4 KB fixed.
+Each block encodes against a codebook referenced in the meta header.
+Codebooks are learned vocabularies: 8,192 concepts each.
+Resonance-driven selection: content tested against ALL codebooks, top 3 win.
+When nothing resonates: orphan accumulation → new codebook crystallizes.
+Cross-domain: records that resonate against multiple codebooks bridge domains.
+Meta-think codebook: watches codebook operations. IS metacognition.
 ```
 
 ## The Six-Step Validation Ladder
