@@ -10,6 +10,7 @@ RedisGraph reimagined in Hamming 3D. Neo4j at 6,000× speed.
 |-----|---------|-----------|
 | [CAM_CODEBOOK.md](CAM_CODEBOOK.md) | What the fingerprint IS: presence vector over learned vocabulary. | **Read first.** The mechanism. |
 | [CODEBOOK_MULTIPLEXING.md](CODEBOOK_MULTIPLEXING.md) | Container speaks whatever language fits. Resonance-driven codebook selection. Crystallization = plasticity. Meta-think codebook. 10 contracts. | **Read second.** The architecture. |
+| [EDGE_CONTRACT.md](EDGE_CONTRACT.md) | Explicit edges: topology in meta W12-W15, ports, execution state, delivery guarantees, payloads as nodes. YAML→CogRecord mapping. Cypher-like queries. 10 edge contracts. | When wiring graphs or building orchestration. |
 | [UNIVERSAL_SUBSTRATE.md](UNIVERSAL_SUBSTRATE.md) | Six break points hardened: C-block (4th axis), hierarchical codebook, concept splitting, embodiment vocabulary, temporal codebook, structural validation of cross-domain transfer. 8 contracts. | After CAM_CODEBOOK. The hardening. |
 | [SCHEMA_SPECIFICATION.md](SCHEMA_SPECIFICATION.md) | Domain-blind schema. Six decisions preventing domain lock-in. DomainAdapter trait. | After CAM_CODEBOOK. The rules. |
 | [VALIDATION_LADDER.md](VALIDATION_LADDER.md) | The escalation path: Chess → AIWar → WikiLeaks → Wikipedia → Live Politics → Cross-Domain. AIWarAdapter + WikiLeaksAdapter full specs. Publication strategy. | Understanding the argument. |
