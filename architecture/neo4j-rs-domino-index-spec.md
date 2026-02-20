@@ -113,6 +113,16 @@ CHECK 5 — WAL fold visible?
   Fold all pending commits
   Re-render — dashed edges should become solid
   → If topology doesn't match WAL predictions: fold logic is wrong. STOP.
+
+CHECK 6 — Grounded containers resonate with concepts?
+  Add 5 CONCEPT containers: "bird", "fish", "tree", "car", "house"
+  Add 10 GROUNDED containers: 2 bird images, 2 fish images, etc.
+  (Use random Q3 fingerprints clustered near their concept)
+  Render — grounded containers (square nodes) should cluster 
+  around their concept containers (circle nodes)
+  → If grounded and concept containers don't cluster: 
+    CAM projection is wrong. STOP.
+  → Bonus: verify that asset_id shows on hover for grounded nodes.
 ```
 
 ### 0.3 The Renderer Contract
@@ -211,7 +221,66 @@ Q3 [32 × u64] — CAM / Routing / Resonance Address
     Used for: Hamming resonance matching, Domino chain membership
 ```
 
-### 1.2 Invariants
+### 1.2 Container Types — Concept vs Grounded
+
+Containers come in two modes. The layout is identical (8192 bit). The difference is in Q0 header interpretation.
+
+```
+CONCEPT container (default):
+  Q0[0]    = 0x0000 (type flag: symbolic)
+  Q0[1..31]= Thinking style, codebook class, inference mode
+  Q1       = NARS relations
+  Q2       = Entity fingerprint (what it IS)
+  Q3       = CAM routing address (where it resonates)
+
+GROUNDED container (anchored to an asset):
+  Q0[0]    = 0x0001..0x0004 (type flag: image/video/text/audio)
+  Q0[1]    = Asset ID (hash of file path, URI, or content hash)
+  Q0[2]    = Chunk offset (frame number, byte offset, paragraph index)
+  Q0[3..31]= Thinking style (29 × u64 — sufficient)
+  Q1       = NARS relations (initially empty, populated by resonance)
+  Q2       = Entity fingerprint (Jina embed of filename/metadata)
+  Q3       = CAM-projected embedding (CLIP/Jina → CAM codebook → Hamming)
+```
+
+**The projection bridge — float embeddings to Hamming fingerprints:**
+
+```
+External embedding (CLIP, Jina, etc.)
+  float32[1024] or float32[768]
+    ↓
+CAM Projection (locality-sensitive hashing into binary)
+  Thresholded random hyperplane projection
+  OR trained binary autoencoder
+  OR SimHash
+    ↓
+  [u64; 32] = 2048-bit Hamming fingerprint → Q3
+```
+
+This means: a photo of a bird and the concept node "bird" will have SIMILAR Q3 fingerprints if their embeddings are similar. The resonance scan finds them automatically. No manual linking. The knowledge graph grows from perception.
+
+**Asset reference is IN the container, not beside it.** No join table. No external index. The container IS the reference. To retrieve the original asset:
+
+```rust
+fn resolve_asset(container: &Superblock) -> Option<AssetRef> {
+    let type_flag = container[0]; // Q0[0]
+    if type_flag == 0 { return None; } // CONCEPT, no asset
+    Some(AssetRef {
+        asset_type: AssetType::from(type_flag),
+        asset_id: container[1],   // Q0[1]
+        chunk_offset: container[2], // Q0[2]
+    })
+}
+```
+
+**LanceDB coexistence:** The Arrow batch that holds containers CAN be a LanceDB table. LanceDB adds IVF-PQ indexing on top. But the native Domino index is the primary path. LanceDB serves as:
+- Bulk ingest pipeline (load 100K images → embed → project → containers)
+- Fallback ANN search when Domino chains haven't been built yet
+- Interop with existing ML pipelines that expect Lance format
+
+**The containers in LanceDB use the same 8192-bit layout.** No conversion. A LanceDB table of containers IS an Arrow batch of containers. Zero-copy both ways.
+
+### 1.3 Invariants
 
 - **Zero-copy**: Containers live in Arrow RecordBatches. Never mutated in place.
 - **WAL-only writes**: All state changes append to WAL. Containers fold pending commits on next read (self-healing on read).
@@ -711,14 +780,16 @@ That's it. Everything else is optimization.
 When sessions debate schema (and they will), use this visual language in the renderer:
 
 ```
-Node color      = cluster membership (from Q3 similarity)
-Node size       = number of active bindings (WAL commits folded)
-Node border     = DN-tree level (thin=leaf, thick=root)
-Edge solid      = resonance (below threshold)
-Edge dashed     = WAL pending (commitment exists but not folded)
-Edge bold red   = XOR bind (explicit commitment)
-Edge dotted     = Domino chain link (not a real edge, just an index shortcut)
-Edge thickness  = 1 / hamming_distance (closer = thicker)
+Node shape       = circle (CONCEPT) / square (GROUNDED) / diamond (BRIDGE)
+Node color       = cluster membership (from Q3 similarity)
+Node size        = number of active bindings (WAL commits folded)
+Node border      = DN-tree level (thin=leaf, thick=root)
+Node icon        = asset type for GROUNDED (🖼 image, 🎬 video, 📝 text, 🔊 audio)
+Edge solid       = resonance (below threshold)
+Edge dashed      = WAL pending (commitment exists but not folded)
+Edge bold red    = XOR bind (explicit commitment)
+Edge dotted      = Domino chain link (not a real edge, just an index shortcut)
+Edge thickness   = 1 / hamming_distance (closer = thicker)
 ```
 
 Any time a session says "I think X should go in Q0 not Q3" — render both. Show. Don't argue.
