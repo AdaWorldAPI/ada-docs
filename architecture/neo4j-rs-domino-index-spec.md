@@ -8,6 +8,183 @@ This document is a self-contained prompt and specification for testing two compe
 
 ---
 
+## 0. FIRST: The 50-Container Reality Check
+
+**Before touching any strategy, build this. It is the session's first deliverable.**
+
+The problem with this architecture is that sessions lose the forest for the trees. A renderer that shows the resonance network LIVE kills that problem. You see what you're building. You catch schema drift instantly. The renderer IS the test.
+
+### 0.1 The Minimal Kernel (Session 1, first 30 minutes)
+
+Do not use Arrow. Do not use DataFusion. Do not use SIMD. Start with 50 containers in flat `Vec<[u64; 128]>`. The point is to SEE the resonance network emerge, not to optimize it.
+
+```rust
+// main.rs — THE WHOLE THING FITS IN ONE FILE
+// Build and run: cargo run --release
+
+use std::collections::HashMap;
+
+const N: usize = 50;
+const THRESHOLD: u32 = 800; // Hamming distance threshold for "resonance"
+
+type Superblock = [u64; 128];
+
+fn hamming_q3(a: &Superblock, b: &Superblock) -> u32 {
+    let mut dist = 0u32;
+    for i in 96..128 {
+        dist += (a[i] ^ b[i]).count_ones();
+    }
+    dist
+}
+
+fn main() {
+    // 1. Generate 50 containers in 5 clusters
+    let containers = generate_clustered(N, 5, 0.15);
+    
+    // 2. Brute-force resonance scan — find ALL edges
+    let mut edges: Vec<(usize, usize, u32)> = vec![];
+    for i in 0..N {
+        for j in (i+1)..N {
+            let dist = hamming_q3(&containers[i], &containers[j]);
+            if dist < THRESHOLD {
+                edges.push((i, j, dist));
+            }
+        }
+    }
+    
+    // 3. Output as DOT graph → render with graphviz or d3
+    println!("{}", to_dot(&containers, &edges));
+    
+    // 4. Output as JSON → render in browser
+    println!("{}", to_json(&containers, &edges));
+}
+```
+
+**Output formats — pick ONE, get it on screen:**
+
+```
+Option A: DOT → graphviz (pipe to `dot -Tsvg`)
+  - Fastest to see. Nodes colored by cluster. Edge thickness = resonance strength.
+  
+Option B: JSON → HTML/d3.js force-directed graph  
+  - Interactive. Drag nodes. Hover for Q3 fingerprint. Click to see Hamming distances.
+  - Better for demos. This is what you show people.
+
+Option C: JSON → terminal sparkline
+  - Minimal. Shows adjacency matrix as heatmap in terminal.
+  - Good enough if you just need to verify clustering works.
+```
+
+### 0.2 The Reality Check Sequence
+
+Once the renderer works, run these checks IN ORDER. Each one validates a layer of the architecture before you build on it:
+
+```
+CHECK 1 — Clustering visible?
+  Generate 50 containers, 5 clusters, noise=0.1
+  → You should SEE 5 distinct groups in the graph
+  → If not: your generator or threshold is wrong. STOP.
+
+CHECK 2 — XOR bind changes topology?
+  Pick container_0 and container_25 (different clusters)
+  Compute: commitment = hash(0, 25)
+  Apply: container_0.Q3[0] ^= commitment; container_25.Q3[0] ^= commitment
+  Re-render
+  → You should SEE a new edge between 0 and 25
+  → Their old edges should shift slightly (fingerprint changed)
+  → If not: your bind logic is wrong. STOP.
+
+CHECK 3 — XOR unbind restores topology?
+  Apply same commitment again (XOR is self-inverse)
+  Re-render
+  → Graph should look identical to CHECK 1
+  → If not: your unbind logic is broken. STOP.
+
+CHECK 4 — Domino chain visible?
+  Build Domino index (either strategy) for the 50 containers
+  Render the Domino chains as COLORED OVERLAY on the resonance graph
+  → Chains should follow the natural cluster structure
+  → Chain hops should connect nearby nodes, not jump across clusters
+  → If chains cross clusters: your chain builder is wrong. STOP.
+
+CHECK 5 — WAL fold visible?
+  Append 10 random commitments to WAL (don't fold yet)
+  Render with WAL overlay (pending commits shown as dashed edges)
+  Fold all pending commits
+  Re-render — dashed edges should become solid
+  → If topology doesn't match WAL predictions: fold logic is wrong. STOP.
+```
+
+### 0.3 The Renderer Contract
+
+Any session that adds features to the engine MUST update the renderer to show it. No invisible architecture. If you can't render it, you don't understand it.
+
+```rust
+/// Every component that affects topology must implement this
+trait Renderable {
+    /// Return nodes and edges in renderer-neutral format
+    fn to_graph(&self) -> GraphSnapshot;
+}
+
+struct GraphSnapshot {
+    nodes: Vec<NodeVis>,
+    edges: Vec<EdgeVis>,
+    overlays: Vec<Overlay>,  // Domino chains, WAL pending, DN-tree, etc.
+}
+
+struct NodeVis {
+    id: usize,
+    cluster: u16,           // color
+    q3_fingerprint: String,  // hex, shown on hover
+    position: Option<(f64, f64)>, // if force-directed layout caches positions
+}
+
+struct EdgeVis {
+    from: usize,
+    to: usize,
+    hamming_dist: u32,
+    edge_type: EdgeType,     // Resonance, DominoChain, WALPending, Bridge
+}
+
+enum EdgeType {
+    Resonance,      // solid, thickness = 1/hamming_dist
+    DominoChain,    // colored by chain_id
+    WALPending,     // dashed
+    Bridge,         // dotted, only for DN-tree strategy
+    Bind,           // bold, shows XOR commitment
+}
+```
+
+### 0.4 Recommended: HTML Renderer (Session 1 deliverable)
+
+```html
+<!-- Save the JSON output, open this HTML, drag & drop the JSON -->
+<!-- Force-directed layout with d3.js -->
+<!-- This becomes the architecture's dashboard -->
+```
+
+The session SHOULD produce a self-contained HTML file that:
+- Loads a JSON snapshot from the Rust engine
+- Shows force-directed graph with cluster colors
+- Supports overlay toggles (resonance / domino / WAL / DN-tree)
+- Shows Hamming distance on edge hover
+- Shows Q3 fingerprint on node hover
+- Has a "step" button: load next JSON snapshot (for watching WAL fold, bind/unbind, etc.)
+
+**This HTML file is the renderer. Keep it. Update it. It is as important as the engine.**
+
+### 0.5 Why This Comes First
+
+Sessions diverge because they can't SEE the architecture. They reinvent the schema because they're reasoning about abstractions instead of looking at a graph. The renderer is the anti-divergence tool.
+
+When a session asks "should the codebook index go in Q0 or Q3?" — you render both and LOOK. When a session debates "SPO vs thinking-style addressing" — you render both and LOOK. The renderer makes architecture decisions empirical instead of philosophical.
+
+50 containers. 5 clusters. One screen. That's where every session starts.
+
+---
+
+---
+
 ## 1. Architecture Contract (Non-Negotiable)
 
 ### 1.1 Container Layout — The Superblock
@@ -339,68 +516,97 @@ fn test_progressive_drift(strategy: &impl DominoBuilder, batch: &RecordBatch) {
 
 ## 4. Implementation Roadmap
 
-### Phase 0: Scaffolding (do this first)
+### Phase 0: SEE IT (Session 1 — non-negotiable first step)
+
+**Gate: Nothing else starts until you can see 50 containers on screen.**
+
+```
+□ Single-file main.rs: 50 containers, 5 clusters, brute-force scan
+□ JSON output: nodes with cluster + Q3 hex, edges with hamming_dist
+□ HTML renderer: d3.js force-directed graph with overlay toggles
+□ Reality Check 1-3 pass (clustering visible, bind works, unbind restores)
+□ Screenshot or live demo proves it works
+```
+
+Deliverables: `main.rs` (~150 lines) + `renderer.html` (~200 lines)  
+Time: 30-60 minutes. If it takes longer, something is wrong.
+
+### Phase 1: Core + Renderer Integration (1-2 sessions)
 
 ```
 □ Cargo workspace: neo4j-rs-domino/
-  ├── core/          — Superblock type, quadrant accessors, Hamming SIMD
+  ├── core/          — Superblock type, quadrant accessors, Hamming
   ├── gen/           — Test data generator (clustered containers)
+  ├── render/        — JSON/DOT snapshot exporter (Renderable trait)
   ├── domino-full/   — Strategy A implementation
   ├── domino-dn/     — Strategy B implementation  
   └── bench/         — Criterion benchmarks + recall tests
 ```
 
 ```toml
-# Cargo.toml workspace
 [workspace]
-members = ["core", "gen", "domino-full", "domino-dn", "bench"]
+members = ["core", "gen", "render", "domino-full", "domino-dn", "bench"]
 
 [workspace.dependencies]
 arrow = { version = "53", features = ["ffi"] }
 datafusion = "43"
 criterion = "0.5"
 rand = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 ```
-
-### Phase 1: Core (2-3 sessions)
 
 ```
 □ Superblock type with From<&[u8; 1024]> (zero-copy from Arrow)
-□ SIMD Hamming: portable (count_ones loop) + #[cfg(target_feature = "avx512f")]
+□ Hamming: portable (count_ones loop) + #[cfg(target_feature = "avx512f")]
 □ Arrow RecordBatch ↔ Superblock zero-copy bridge
 □ Brute-force KNN as ground truth oracle
 □ Test data generator with controlled clustering
+□ Renderable trait + JSON snapshot exporter
+□ HTML renderer updated: now loads from file or stdin pipe
+□ Reality Check 4 ready (Domino overlay visualization)
 ```
 
-### Phase 2: Strategy A — Full-Sweep (2-3 sessions)
+**Gate: Arrow bridge works. 10K containers render correctly. Brute-force KNN matches visual inspection.**
+
+### Phase 2: Strategy A — Full-Sweep (1-2 sessions)
 
 ```
 □ LSH signature computation (SimHash on Q3)
 □ Sort-and-window chain builder
 □ DominoIndex struct with chain traversal
 □ Incremental update (single container drift)
+□ Render: Domino chains as colored overlay → Reality Check 4
 □ Benchmarks T1, T3 at 10K and 100K
 ```
 
-### Phase 3: Strategy B — DN-Tree (2-3 sessions)
+**Gate: Domino chains visually follow cluster structure. Recall@20 > 0.90 on 10K.**
+
+### Phase 3: Strategy B — DN-Tree (1-2 sessions)
 
 ```
 □ Mock DN-tree (hardcoded 3-level hierarchy, 64 leaves)
 □ Registration: container → DN leaf by Q3 prefix
 □ Local chain builder per leaf
 □ Bridge entry computation at parent level
+□ Render: DN-tree overlay + bridge edges → visual comparison with Strategy A
 □ Same benchmarks T1, T3 at 10K and 100K
 ```
+
+**Gate: Cross-branch resonance visible in renderer. Bridge entries connect the right clusters.**
 
 ### Phase 4: Head-to-Head (1-2 sessions)
 
 ```
 □ Full test matrix (T1-T6)
-□ Recall comparison at varying noise levels
+□ RENDER BOTH side by side: same containers, different Domino overlays
 □ Update storm test (the million-hashtable question)
-□ Drift stability curves
-□ Decision: A, B, or hybrid
+□ Render: before/after WAL fold storm — topology stability visible
+□ Drift stability curves (render progressive drift as animation frames)
+□ Decision: A, B, or hybrid — with visual evidence
 ```
+
+**Gate: Decision made. Screenshot comparison in ada-docs as evidence.**
 
 ### Phase 5: Integration (2-3 sessions)
 
@@ -410,11 +616,38 @@ rand = "0.8"
 □ WAL integration: append-only commits, fold-on-read
 □ NARS negotiation hook in Q1 (post-resonance filter)
 □ End-to-end: Cypher-like query → DataFusion plan → Domino scan → results
+□ Renderer upgraded: live query visualization (highlight traversal path)
 ```
+
+### Phase 6: Neo4j Compatibility Layer (2-3 sessions)
+
+```
+□ Cypher parser subset (MATCH, WHERE, RETURN, CREATE, MERGE)
+□ Cypher → DataFusion LogicalPlan translation
+□ Property access: Q2 decode for node properties
+□ Relationship patterns: (a)-[r]->(b) → ResonanceScan with NARS filter
+□ Renderer: Cypher query input → visual result → side-by-side with Neo4j output
+□ Reality check: same query against real Neo4j and neo4j-rs, compare results
+```
+
+**This is the proof. If the renderer shows identical results at 6000x speed, you have your demo.**
 
 ---
 
 ## 5. Session Contract
+
+**SESSION START PROTOCOL — every session, no exceptions:**
+
+```
+1. Read this document. All of it.
+2. Check: does the renderer (renderer.html) exist?
+   YES → load it, generate 50 containers, verify it renders. Then proceed.
+   NO  → BUILD IT FIRST. Section 0. Nothing else until you see containers on screen.
+3. Check: which Phase gate was last passed?
+   → Resume from there. Do not redo passed gates.
+4. Before writing ANY new code: render the current state.
+   → If you can't render it, you don't understand it.
+```
 
 **Any Claude session working on this MUST**:
 
@@ -426,6 +659,8 @@ rand = "0.8"
 6. Test against brute-force ground truth. No "it probably works."
 7. Report: build time, query latency, recall@20, update cost per op.
 8. Do not introduce serde or serialization between containers and index. Zero-copy or nothing.
+9. **Every topology-affecting change must be visible in the renderer before moving on.**
+10. **If the renderer shows something wrong, the code is wrong. Trust the visual, not the logic.**
 
 **Architecture decisions already made** (do not reopen):
 
@@ -449,7 +684,61 @@ rand = "0.8"
 
 ---
 
-## 6. Decision Framework
+## 5.5 Click Accelerators — Reducing Session Ramp-Up
+
+Sessions fail because they spend 60% of context window understanding the architecture and 40% building. These accelerators flip that ratio.
+
+### The One-Sentence Pitch
+
+> Containers are immutable 8KB blobs in Arrow memory. They find each other through Hamming distance on their Q3 quadrant. When two containers agree to connect, they XOR a shared commitment into their fingerprints. The network is never stored — it's re-scanned every query. The Domino index makes that scan fast by pre-computing jump chains.
+
+If a session can't recite this after reading Section 1, the spec is too long. This paragraph is the architecture.
+
+### The Three-File Bootstrap
+
+A new session should be productive in THREE files, not a workspace:
+
+```
+File 1: lib.rs    — Superblock type + hamming_q3() + generate_clustered()
+File 2: main.rs   — 50 containers → brute-force scan → JSON output
+File 3: index.html — d3.js renderer, paste JSON, see graph
+
+That's it. Everything else is optimization.
+```
+
+### Visual Vocabulary for Architecture Debates
+
+When sessions debate schema (and they will), use this visual language in the renderer:
+
+```
+Node color      = cluster membership (from Q3 similarity)
+Node size       = number of active bindings (WAL commits folded)
+Node border     = DN-tree level (thin=leaf, thick=root)
+Edge solid      = resonance (below threshold)
+Edge dashed     = WAL pending (commitment exists but not folded)
+Edge bold red   = XOR bind (explicit commitment)
+Edge dotted     = Domino chain link (not a real edge, just an index shortcut)
+Edge thickness  = 1 / hamming_distance (closer = thicker)
+```
+
+Any time a session says "I think X should go in Q0 not Q3" — render both. Show. Don't argue.
+
+### The Convergence Test
+
+After ANY session that modifies the architecture, run this:
+
+```
+1. Generate 50 containers, 5 clusters, noise=0.1
+2. Render with ALL overlays on
+3. Save screenshot to ada-docs/architecture/snapshots/
+4. Compare with previous screenshot
+5. If the visual topology changed: document WHY in the commit message
+6. If it changed and you didn't expect it to: REVERT
+```
+
+This catches schema drift that benchmarks miss. Two renders that look different but claim the same recall score → something is wrong.
+
+---
 
 After running T1-T6, score each strategy:
 
@@ -462,6 +751,163 @@ After running T1-T6, score each strategy:
 | Drift stability | 10% | Recall > 0.90 after 20% drift | Same or better without rebuild |
 
 **Hybrid option**: Use DN-tree for initial structure + full-sweep refinement passes on bridge entries. This is likely the actual answer but we need the data to prove it.
+
+---
+
+*This document is the single source of truth for the neo4j-rs Domino index work. Save it. Reference it. Do not diverge from it.*
+
+---
+
+## 7. Neo4j Reality Check Protocol
+
+The renderer isn't just for development — it's the proof that neo4j-rs produces correct results. This section defines how to validate against real Neo4j.
+
+### 7.1 Setup: Side-by-Side Comparison
+
+```
+┌─────────────────────┐     ┌─────────────────────┐
+│   Neo4j (Docker)     │     │   neo4j-rs (Rust)    │
+│   bolt://localhost   │     │   Arrow + Domino      │
+│                      │     │                      │
+│   Same data loaded   │     │   Same data loaded   │
+│   Cypher query in    │     │   Cypher query in    │
+│   JSON result out    │     │   JSON result out    │
+└──────────┬──────────┘     └──────────┬──────────┘
+           │                           │
+           └─────────┐  ┌─────────────┘
+                     ▼  ▼
+              ┌──────────────┐
+              │   Renderer    │
+              │  Split view:  │
+              │  Left = Neo4j │
+              │  Right = Rust │
+              │  Diff = RED   │
+              └──────────────┘
+```
+
+### 7.2 Test Dataset: MovieGraph (built-in Neo4j sample)
+
+Use the standard Neo4j movie dataset. It's small (170 nodes, 250 relationships), well-known, and trivially loadable in both systems.
+
+```cypher
+-- Load in Neo4j
+:play movies
+
+-- Equivalent in neo4j-rs: load as containers
+-- Each Person node → Superblock (Q2 = name/born, Q0 = :Person thinking style)
+-- Each Movie node  → Superblock (Q2 = title/year, Q0 = :Movie thinking style)  
+-- Each ACTED_IN    → NOT stored as edge. Instead:
+--   Q3 of person and Q3 of movie share a partial fingerprint
+--   The relationship emerges from resonance
+--   Q1 encodes the relationship type + role property
+```
+
+### 7.3 The Five Cypher Queries That Must Match
+
+```cypher
+-- Q1: Simple node lookup
+MATCH (p:Person {name: "Tom Hanks"}) RETURN p
+
+-- Q2: One-hop relationship
+MATCH (p:Person {name: "Tom Hanks"})-[:ACTED_IN]->(m:Movie) RETURN m.title
+
+-- Q3: Two-hop traversal  
+MATCH (p:Person {name: "Tom Hanks"})-[:ACTED_IN]->(m)<-[:ACTED_IN]-(coActor)
+RETURN DISTINCT coActor.name
+
+-- Q4: Aggregation
+MATCH (p:Person)-[:DIRECTED]->(m:Movie)
+RETURN p.name, count(m) ORDER BY count(m) DESC LIMIT 5
+
+-- Q5: Path finding
+MATCH path = shortestPath(
+  (a:Person {name: "Tom Hanks"})-[*]-(b:Person {name: "Keanu Reeves"})
+)
+RETURN path
+```
+
+### 7.4 What "Match" Means
+
+```
+EXACT MATCH:     Same result set, same values (order may differ)
+SEMANTIC MATCH:  Same entities found, minor property differences OK
+TOPOLOGY MATCH:  Same graph structure visible in renderer
+
+For the reality check, we need EXACT MATCH on Q1-Q4 
+and TOPOLOGY MATCH on Q5 (path may differ if multiple shortest paths exist).
+```
+
+### 7.5 The Renderer Comparison View
+
+Add to renderer.html:
+
+```javascript
+// Split-screen mode
+// Left pane: Neo4j result (loaded from neo4j-result.json)
+// Right pane: neo4j-rs result (loaded from rust-result.json)
+// Center: diff overlay
+//   - Green nodes: present in both
+//   - Red nodes: missing in one
+//   - Yellow edges: different relationship properties
+//   - Blue path: Q5 shortest path overlay
+
+function loadComparison(neo4jJson, rustJson) {
+    const diff = computeDiff(neo4jJson, rustJson);
+    renderSplitView(neo4jJson, rustJson, diff);
+    
+    // Summary bar at bottom:
+    // "Q1: ✓ EXACT | Q2: ✓ EXACT | Q3: ✓ EXACT | Q4: ✗ MISSING: ... | Q5: ✓ TOPOLOGY"
+}
+```
+
+### 7.6 Performance Column
+
+The renderer should show timing for both:
+
+```
+┌─────────────────────────────────────────────────┐
+│  Query: MATCH (p)-[:ACTED_IN]->(m) RETURN m     │
+│                                                   │
+│  Neo4j:    12.3ms    │  neo4j-rs:  0.002ms       │
+│  Results:  13        │  Results:   13             │
+│  Match:    ✓ EXACT   │  Speedup:   6150x         │
+│                                                   │
+│  [Render Neo4j]  [Render Rust]  [Show Diff]      │
+└─────────────────────────────────────────────────┘
+```
+
+**This is the slide.** When you walk into an interview or a meeting and show this renderer with split-screen Neo4j vs neo4j-rs results — identical output, 6000x faster — nobody asks for a whitepaper. They see it.
+
+### 7.7 Automated Regression
+
+```bash
+#!/bin/bash
+# run_reality_check.sh — run after every architecture change
+
+# Start Neo4j
+docker run -d --name neo4j-test -p 7687:7687 neo4j:latest
+
+# Load movie dataset
+cypher-shell -u neo4j -p test < movies.cypher
+
+# Run 5 queries against Neo4j, save results
+for q in q1 q2 q3 q4 q5; do
+    cypher-shell -u neo4j -p test < queries/${q}.cypher --format json > results/neo4j_${q}.json
+done
+
+# Run same 5 queries against neo4j-rs
+cargo run --release -- --queries queries/ --output results/rust/
+
+# Compare
+cargo run --release --bin compare -- results/neo4j/ results/rust/
+# Output: PASS/FAIL per query + timing comparison
+
+# Generate renderer snapshot
+cargo run --release --bin snapshot -- --both results/ > snapshots/$(date +%Y%m%d).json
+
+# Cleanup
+docker rm -f neo4j-test
+```
 
 ---
 
