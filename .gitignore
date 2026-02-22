@@ -27,3 +27,6 @@ Thumbs.db
 # Temp
 *.tmp
 *.log
+
+# Research PDFs (large binary files)
+research/clam/*.pdf
