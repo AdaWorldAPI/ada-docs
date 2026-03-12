@@ -12,6 +12,7 @@
 | [rustynum](https://github.com/AdaWorldAPI/rustynum) | The Muscle | ✅ Updated | CI broken |
 | [ladybug-rs](https://github.com/AdaWorldAPI/ladybug-rs) | The Brain | ✅ Updated | CI broken, mid-surgery |
 | [staunen](https://github.com/AdaWorldAPI/staunen) | The Bet | ✅ Created | Stubs only |
+| [erntefeld](https://github.com/AdaWorldAPI/erntefeld) | The Memory | ✅ Created | Empty, post-Sisyphus |
 | [lance-graph](https://github.com/AdaWorldAPI/lance-graph) | The Face | ✅ Created | Working, needs crate split |
 
 ## Universal Rules (All Repos)
